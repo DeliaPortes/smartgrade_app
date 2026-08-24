@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartGrade – Academic Monitoring & Communication System</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN PAGE ═══════════════ -->
+<div id="login-page">
+  <div class="login-left">
+    <div class="hero-deco hero-deco-1"></div>
+    <div class="hero-deco hero-deco-2"></div>
+    <div class="ll-logo">
+      <div class="ll-icon"><img src="images/logo.png" alt="SmartGrade logo"></div>
+      <div class="ll-brand smartgrade-gradient">SmartGrade</div>
+    </div>
+  </div>
+  <div class="login-right">
+    <div class="login-box">
+
+      <!-- ORIGINAL sign-in form (unchanged) -->
+      <div id="login-form-section">
+        <div class="lbox-title">Welcome back!</div>
+        <div class="lbox-sub">Sign in to access your SmartGrade dashboard</div>
+        <div class="lf">
+          <label>Email Address</label>
+          <input id="l-email" type="email" value="" placeholder="your@email.com">
+        </div>
+
+        <div class="lf">
+          <label>Password</label>
+          <div class="pass-wrap">
+            <input id="l-pass" type="password" placeholder="Enter your password">
+            <button type="button" class="pass-toggle" id="pass-toggle" onclick="togglePasswordVisibility()" aria-label="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;margin-top:-4px">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;color:#18180E;font-weight:500">
+            <input type="checkbox" id="remember-me" style="width:14px;height:14px;border-radius:3px;cursor:pointer;accent-color:var(--green)"> Remember Me
+          </label>
+          <span onclick="openForgotPassword()"
+            style="font-size:12px;color:var(--green);cursor:pointer;font-weight:600">
+            Forgot Password?
+          </span>
+        </div>
+        <button class="login-cta" onclick="doLogin()">Sign In to SmartGrade →</button>
+        <div class="demo-box" id="demo-hint"><strong>Demo Access:</strong><br>Welcome!</div>
+
+        <!-- NEW: link to teacher self-registration -->
+        <div class="login-switch-link">
+          Don't have an account? <span onclick="showLoginTab('register')">Sign up as a Teacher</span>
+        </div>
+      </div>
+
+      <!-- NEW: teacher self-registration form (hidden by default) -->
+      <div id="register-form-section" style="display:none">
+        <div class="lbox-title">Teacher Sign Up</div>
+        <div class="lbox-sub">Register as a teacher account</div>
+
+        <div class="reg-info-box">
+          <strong>ℹ How it works:</strong> Submit your registration below.
+          The school admin will review and approve your account before you can log in.
+        </div>
+
+        <div class="form-grid form-row-2" style="gap:11px;margin-bottom:12px">
+          <div class="lf" style="margin-bottom:0">
+            <label>Full Name*</label>
+            <input id="r-name" type="text" placeholder="e.g. Ms. Maria Santos">
+          </div>
+          <div class="lf" style="margin-bottom:0">
+            <label>Email Address*</label>
+            <input id="r-email" type="email" placeholder="teacher@school.edu">
+          </div>
+          <div class="lf" style="margin-bottom:0">
+            <label>Password*</label>
+            <input id="r-pass" type="password" placeholder="Create a password">
+          </div>
+          <div class="lf" style="margin-bottom:0">
+            <label>Phone Number</label>
+            <input id="r-phone" type="tel" placeholder="09XXXXXXXXX">
+          </div>
+          <div class="lf" style="margin-bottom:0">
+            <label>Grade Level*</label>
+            <select id="r-grade">
+              <option value="Grade 1">Grade 1</option>
+              <option value="Grade 2">Grade 2</option>
+              <option value="Grade 3">Grade 3</option>
+            </select>
+          </div>
+          <div class="lf" style="margin-bottom:0">
+            <label>Section*</label>
+            <input id="r-section" type="text" placeholder="e.g. Sampaguita">
+          </div>
+        </div>
+
+        <button class="login-cta" onclick="doRegisterTeacher()">Submit Registration →</button>
+
+        <div class="login-switch-link">
+          Already have an account? <span onclick="showLoginTab('login')">Sign in here</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP SHELL ═══════════════ -->
+<div id="app" style="flex-direction:column">
+ <div class="topbar">
+  <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn">
+    <span></span><span></span><span></span>
+  </button>
+    <div class="tb-brand"><img class="tb-brand-logo" src="images/logo.png" alt="SmartGrade logo"><span class="tb-brand-text">SmartGrade</span></div>
+    <button class="tb-notif-btn" onclick="openNotifications()" title="Announcements">
+      <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+      <span class="tb-topbadge" id="notif-badge" style="display:none"></span>
+    </button>
+    <button class="tb-notif-btn" onclick="nav('messages')" title="Messages">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <span class="tb-topbadge" id="msg-badge" style="display:none"></span>
+    </button>
+    <div class="tb-user" onclick="nav('profile')" title="View Profile">
+      <div class="av av-32 av-green" id="tb-av">?</div>
+      <div class="tb-user-info">
+        <div class="tb-uname" id="tb-name">User</div>
+        <div class="tb-urole" id="tb-role">role</div>
+      </div>
+    </div>
+    <button class="tb-logout" onclick="doLogout()">Sign Out</button>
+  </div>
+  <div class="app-body">
+    <nav class="sidebar" id="sidebar"></nav>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- NEW: EmailJS, used only for the failing-grade alert email (script.js checks it exists before using it) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
