@@ -67,7 +67,7 @@ const STATE = {
   grades: {
     S001:{math:[88,92,85,90],science:[90,87,93,91],english:[85,88,82,87],filipino:[92,94,90,93],ap:[88,85,89,87]},
     S002:{math:[78,82,80,84],science:[82,79,85,81],english:[76,79,78,80],filipino:[80,82,78,83],ap:[77,75,80,78]},
-    S003:{math:[95,97,93,96],science:[88,91,89,92],english:[90,93,88,92],filipino:[85,87,84,88],ap:[91,93,90,94]},
+    S003:{makabansa:[91,93,90,94],math:[95,97,93,96],gmrc:[88,90,89,92],reading_literacy:[90,93,88,92],language:[85,87,84,88]},
     S004:{math:[82,85,80,84],science:[79,81,78,82],english:[88,90,86,89],filipino:[86,88,84,87],ap:[83,85,82,86]},
     S005:{math:[78,80,76,82],science:[79,78,81,80],english:[77,76,79,78],filipino:[75,77,78,80],ap:[76,78,79,77]},
     S006:{math:[90,93,88,92],science:[85,87,83,89],english:[88,91,86,90],filipino:[92,94,90,93],ap:[87,89,85,91]},
@@ -708,7 +708,44 @@ function nav(page){
     parent:{dashboard:pgParentDash,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,assignments:pgAssignments,announcements:pgAnnouncements,profile:pgProfile},
     admin:{dashboard:pgAdminDash,students:pgStudents,teachers:pgTeachers,parents:pgParents,classes:pgClasses,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,announcements:pgAnnouncements,reports:pgReports,profile:pgProfile,ranking:pgRanking,approvals:pgApprovals}
   };
-  (pages[role]?.[page] || (()=>{ c.innerHTML='<div class="empty-state"><div class="es-icon">🔍</div><div class="es-title">Page not found</div></div>'; }))(c);
+  const renderPage = pages[role]?.[page] || (()=>{ c.innerHTML='<div class="empty-state"><div class="es-icon">🔍</div><div class="es-title">Page not found</div></div>'; });
+  renderPage(c);
+  if(role==='parent'&&['dashboard','grades','attendance'].includes(page)&&typeof api!=='undefined'&&api.getToken()){
+    Promise.all([api.getStudents(),api.getGrades(),api.getAttendance()]).then(([students,grades,attendance])=>{
+      if(STATE.currentUser?.role!=='parent'||STATE.activeNav!==page) return;
+      STATE.students=_mapStudents(students);
+      STATE.grades=_presentationGrades(grades);
+      STATE.attendance=Object.fromEntries(Object.entries(attendance).map(([studentId,record])=>{
+        const {days,...totals}=record; return [studentId,totals];
+      }));
+      STATE.attendanceDays=Object.fromEntries(Object.entries(attendance).map(([studentId,record])=>[studentId,record.days||{}]));
+      resolveParentChildId(STATE.currentUser);
+      renderPage(c);
+    }).catch(error=>{
+      console.error('Could not refresh parent academic records:',error);
+      if(STATE.currentUser?.role==='parent'&&STATE.activeNav===page){
+        toast(error.message||'Could not refresh your child’s latest records.','error');
+      }
+    });
+  }
+}
+
+function resolveParentChildId(user=STATE.currentUser){
+  if(user?.role!=='parent') return null;
+  const parentId=user.linked_id||user.id;
+  const existingChild=STATE.students.find(student=>student.id===user.childId&&String(student.parentId)===String(parentId));
+  if(existingChild) return existingChild.id;
+  const linkedChild=STATE.students.find(student=>String(student.parentId)===String(parentId));
+  const scopedApiChild=!linkedChild&&typeof api!=='undefined'&&api.getToken()&&STATE.students.length===1
+    ? STATE.students[0]
+    : null;
+  const child=linkedChild||scopedApiChild;
+  if(child){
+    user.childId=child.id;
+    user.child_id=child.id;
+    return child.id;
+  }
+  return null;
 }
 
 function assignmentDateToday(){
@@ -785,7 +822,7 @@ function pgTeacherDash(el){
   const unread = STATE.messages.filter(m=>!m.read&&m.toRole==='teacher'&&m.toId===u.id).length;
   let allScores=[];
   myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g) STATE.subjects.forEach(sub=>{const score=safeAverage(g[sub]);if(score !== null) allScores.push(score);});});
-  const clsAvg = allScores.length?Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length):0;
+  const clsAvg = averageScores(allScores) ?? 0;
   const lowCount = myStudents.filter(s=>{const g=STATE.grades[s.id];return g&&STATE.subjects.some(sub=>{const score=safeAverage(g[sub]);return score !== null&&score<75;});}).length;
   const totPres = myStudents.reduce((a,s)=>{const at=STATE.attendance[s.id];return a+(at?at.present+(at.half_day||0)*0.5:0);},0);
   const totAll  = myStudents.reduce((a,s)=>{const at=STATE.attendance[s.id];return a+(at?at.total:0);},0);
@@ -877,7 +914,7 @@ function pgTeacherDash(el){
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
       ${STATE.subjects.map(sub=>{
         let vals=[];myStudents.forEach(s=>{const g=STATE.grades[s.id];const score=g?safeAverage(g[sub]):null;if(score !== null) vals.push(score);});
-        const sa=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+        const sa=averageScores(vals);
         const subjectGrade=sa===null?'—':u.grade==='Grade 1'?gradeDisplay({grade:u.grade},sa):sa;
         return `<div style="padding:16px;background:var(--bg);border-radius:12px;text-align:center">
           <div class="txs tmm fw7" style="text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${STATE.subjectLabels[sub].split(' ')[0]}</div>
@@ -904,15 +941,16 @@ function pgTeacherDash(el){
    ════════════════════════════════════════ */
 function pgParentDash(el){
   const u = STATE.currentUser;
-  const child = STATE.students.find(s=>s.id===u.childId);
-  const g = STATE.grades[u.childId]||{};
-  const att = STATE.attendance[u.childId]||{present:0,absent:0,late:0,total:45};
+  const childId=resolveParentChildId(u);
+  const child = STATE.students.find(s=>s.id===childId);
+  const g = STATE.grades[childId]||{};
+  const att = STATE.attendance[childId]||{present:0,absent:0,late:0,total:child?45:0};
   const subs = STATE.subjects.map(sub=>safeAverage(g[sub]||[]));
   const gradedSubs = subs.filter(score=>score !== null);
-  const ov = gradedSubs.length?Math.round(gradedSubs.reduce((a,b)=>a+b,0)/gradedSubs.length):0;
+  const ov = averageScores(gradedSubs) ?? 0;
   const attR = att.total?Math.round((att.present+(att.half_day||0)*0.5)/att.total*100):0;
   const displayOv=gradeDisplay(child,ov);
-  const myMsgs = STATE.messages.filter(m=>m.studentId===u.childId||m.toId===u.id||m.fromId===u.id);
+  const myMsgs = STATE.messages.filter(m=>m.studentId===childId||m.toId===u.id||m.fromId===u.id);
   const unread = myMsgs.filter(m=>!m.read&&m.toId===u.id).length;
   const rankedSubs = subs.map((score,index)=>({score,index})).filter(item=>item.score !== null);
   const bestI = rankedSubs.length ? rankedSubs.reduce((best,item)=>item.score>best.score?item:best).index : -1;
@@ -926,7 +964,7 @@ function pgParentDash(el){
     <div style="position:relative;z-index:1">
       <div class="hero-rl">Parent Dashboard</div>
       <div class="hero-name">Welcome, ${u.name.split(' ')[1]}! 👋</div>
-      <div class="hero-sub">Monitoring: <strong style="color:#fff">${child?.name||'Your Child'}</strong> &nbsp;·&nbsp; ${child?.grade} – ${child?.section}</div>
+      <div class="hero-sub">Monitoring: <strong style="color:#fff">${child?.name||'No linked student'}</strong>${child?` &nbsp;·&nbsp; ${child.grade} – ${child.section}`:''}</div>
       <div class="hero-kpis">
         <div><div class="hero-kpi-val">${displayOv}</div><div class="hero-kpi-lbl">Overall Average</div></div>
         <div><div class="hero-kpi-val">${attR}%</div><div class="hero-kpi-lbl">Attendance Rate</div></div>
@@ -937,7 +975,7 @@ function pgParentDash(el){
   </div>
 
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-lbl">Overall Grade</div><div class="stat-val ${ov>=90?'green':ov>=75?'amber':'red'}">${displayOv}</div><div class="stat-foot">${child?.grade==='Grade 1'?displayOv:glabel(ov)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Overall Grade</div><div class="stat-val ${ov>=90?'green':ov>=75?'amber':'red'}">${displayOv}</div><div class="stat-foot">${child?(child.grade==='Grade 1'?displayOv:glabel(ov)):'No linked student'}</div></div>
     <div class="stat-card"><div class="stat-lbl">Attendance</div><div class="stat-val ${attR>=90?'green':attR>=75?'amber':'red'}">${attR}%</div><div class="stat-foot">${att.present} of ${att.total} days</div></div>
     <div class="stat-card"><div class="stat-lbl">Best Subject</div><div class="stat-val green">${bestI >= 0 ? gradeDisplay(child,subs[bestI]) : '—'}</div><div class="stat-foot">${bestI >= 0 ? STATE.subjectLabels[STATE.subjects[bestI]] : 'No grades yet'}</div></div>
     <div class="stat-card"><div class="stat-lbl">Needs Focus</div><div class="stat-val ${worstI >= 0 && subs[worstI]<75?'red':'amber'}">${worstI >= 0 ? gradeDisplay(child,subs[worstI]) : '—'}</div><div class="stat-foot">${worstI >= 0 ? STATE.subjectLabels[STATE.subjects[worstI]] : 'No grades yet'}</div></div>
@@ -949,11 +987,11 @@ function pgParentDash(el){
         <div class="flex aic gap-14">
           <div class="av av-52 av-amber">${ini(child?.name||'')}</div>
           <div class="f1">
-            <div style="font-size:18px;font-weight:800;letter-spacing:-.3px">${child?.name}</div>
-            <div class="ts tm">${child?.grade} – ${child?.section}</div>
+            <div style="font-size:18px;font-weight:800;letter-spacing:-.3px">${child?.name||'No linked student'}</div>
+            <div class="ts tm">${child?`${child.grade} – ${child.section}`:'Contact the school administrator to link a student.'}</div>
             <div class="txs tmm mt-8">LRN: ${child?.lrn||'Not provided'} &nbsp;·&nbsp; ${child?.gender==='F'?'Female':'Male'}</div>
           </div>
-          <span class="badge bg-green" style="font-size:12px">${child?.status}</span>
+          ${child?`<span class="badge bg-green" style="font-size:12px">${child.status}</span>`:''}
         </div>
         <div class="divider"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
@@ -1029,7 +1067,7 @@ function pgAdminDash(el){
     const g=STATE.grades[s.id];
     if(g) allOv.push(overallAvg(g,STATE.subjectSets[s.grade]||STATE.subjects));
   });
-  const schAvg=allOv.length?Math.round(allOv.reduce((a,b)=>a+b,0)/allOv.length):0;
+  const schAvg=averageScores(allOv) ?? 0;
   const outstanding=allOv.filter(x=>x>=90).length;
   const unreadMsgs=STATE.messages.filter(m=>!m.read).length;
   const today=new Date().toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -1881,10 +1919,11 @@ function pgGrades(el){
   const isAdmin = role === 'admin';
   const isTeacher = role === 'teacher';
   let activeQ = 0;
+  let activeGrade = null;
   let changed = {};
 
   function getStudents(){
-    if (isParent) return STATE.students.filter(s=>s.id===STATE.currentUser.childId);
+    if (isParent) return STATE.students.filter(s=>s.id===resolveParentChildId(STATE.currentUser));
     if (isAdmin) return STATE.students.filter(s=>STATE.grades[s.id]);
     return STATE.students.filter(s=>
       s.section===STATE.currentUser.section &&
@@ -1899,6 +1938,13 @@ function pgGrades(el){
 
   function render(){
     const students = getStudents();
+    const gradeLevels = [...new Set(students.map(student=>student.grade))]
+      .sort((a,b)=>Number(a.match(/\d+/)?.[0]||0)-Number(b.match(/\d+/)?.[0]||0));
+    if (isAdmin && !gradeLevels.includes(activeGrade)) activeGrade = gradeLevels[0] || null;
+    const visibleStudents = isAdmin ? students.filter(student=>student.grade===activeGrade) : students;
+    const displaySubjects = isAdmin
+      ? STATE.subjectSets[activeGrade] || STATE.subjects
+      : visibleStudents.length ? subjectsForStudent(visibleStudents[0]) : STATE.subjects;
     el.innerHTML=`
     <div class="page-head">
 <div>
@@ -1921,6 +1967,9 @@ function pgGrades(el){
            </div>`
         : ''}
     </div>
+    ${isAdmin?`<div class="tab-bar grade-level-tabs">
+      ${gradeLevels.map(grade=>`<button class="tab-btn grade-level-tab ${grade===activeGrade?'active':''}" data-grade="${grade}">${grade}</button>`).join('')}
+    </div>`:''}
     <div class="tab-bar">
       ${STATE.quarters.map((q,i)=>
         `<button class="tab-btn ${i===activeQ?'active':''}" data-qi="${i}">${q}</button>`
@@ -1934,13 +1983,13 @@ function pgGrades(el){
             <th>Student</th>
             ${activeQ===4
               ? STATE.quarters.slice(0,4).map(q=>`<th>${q}</th>`).join('')
-              : STATE.subjects.map(s=>`<th>${STATE.subjectLabels[s]}</th>`).join('')}
+              : displaySubjects.map(s=>`<th>${STATE.subjectLabels[s]}</th>`).join('')}
             <th>Average</th>
             <th>Remarks</th>
           </tr>
         </thead>
         <tbody>
-          ${students.map(s=>{
+          ${visibleStudents.map(s=>{
             const g = STATE.grades[s.id]||{};
             const showFinal = activeQ===4;
             const applicableSubjects = new Set(subjectsForStudent(s));
@@ -1948,7 +1997,7 @@ function pgGrades(el){
               ? STATE.quarters.slice(0,4).map((_,qi)=>
                   averageScores(subjectsForStudent(s).map(sub=>g[sub]?.[qi]))
                 )
-              : STATE.subjects.map(sub=>applicableSubjects.has(sub)
+              : displaySubjects.map(sub=>applicableSubjects.has(sub)
                   ? normalizeGradeValue(g[sub]?.[activeQ])
                   : null
                 );
@@ -1968,7 +2017,7 @@ function pgGrades(el){
                 if(showFinal){
                   return `<td><span class="badge ${sc===null?'bg-gray':gbadge(sc)}">${gradeDisplay(s,sc)}</span></td>`;
                 }
-                const sub = STATE.subjects[i];
+                const sub = displaySubjects[i];
                 const key = `${s.id}-${sub}-${activeQ}`;
                 if(sc===null || isParent || isAdmin){
                   return `<td><span class="badge ${sc===null||sc===0?'bg-gray':gbadge(sc)}">${gradeDisplay(s,sc)}</span></td>`;
@@ -1987,8 +2036,11 @@ function pgGrades(el){
       </table>
     </div>`;
 
-    el.querySelectorAll('.tab-btn').forEach(btn=>{
+    el.querySelectorAll('.tab-btn[data-qi]').forEach(btn=>{
       btn.onclick=()=>{ activeQ=parseInt(btn.dataset.qi); changed={}; render(); };
+    });
+    el.querySelectorAll('.grade-level-tab').forEach(btn=>{
+      btn.onclick=()=>{ activeGrade=btn.dataset.grade; changed={}; render(); };
     });
   }
 
@@ -2013,8 +2065,18 @@ function pgGrades(el){
     }
   };
 
-  window.saveGrades=()=>{
+  window.saveGrades=async()=>{
     if(!isTeacher){ toast('Only teachers can save grades.','error'); return; }
+    const studentsToSave=getStudents();
+    if(typeof api!=='undefined'&&api.getToken()){
+      const gradesToSave=Object.fromEntries(studentsToSave.map(student=>[student.id,STATE.grades[student.id]||{}]));
+      try{
+        await api.bulkUpdateGrades(gradesToSave);
+      }catch(error){
+        toast(error.message||'Grades could not be saved. Check your connection and try again.','error');
+        return;
+      }
+    }
     changed={};
     toast('Grades saved successfully!');
     render();
@@ -2055,7 +2117,7 @@ function pgAttendance(el){
   let todayRecords = {};
 
   function getStudents(){
-    if (isParent) return STATE.students.filter(s=>s.id===STATE.currentUser.childId);
+    if (isParent) return STATE.students.filter(s=>s.id===resolveParentChildId(STATE.currentUser));
     if (isAdmin) return STATE.students.filter(s=>STATE.attendance[s.id]);
     return STATE.students.filter(s=>
       s.section===STATE.currentUser.section &&
@@ -2639,7 +2701,6 @@ function pgMessages(el){
           <div class="page-sub">Keep conversations with your school community in one place.</div>
         </div>
         <div class="page-actions">
-          ${u.role==='parent'&&typeof api!=='undefined'&&api.getToken()?`<button class="btn btn-secondary btn-sm" onclick="connectTelegram()">${u.telegram_chat_id?'Telegram Linked':'Connect Telegram'}</button>`:''}
           <button class="btn btn-primary btn-sm" onclick="openComposeModal()">+ New Message</button>
           <button class="btn btn-secondary btn-sm" onclick="toggleArchivedView()">
             ${showArchived?'Back to Inbox':`📁 Archived${archivedCount?` (${archivedCount})`:''}`}
@@ -2682,26 +2743,6 @@ function pgMessages(el){
 
   render();
 }
-
-window.openTelegramLink=function(url){
-  if(window.TrackEdExternalLink) window.TrackEdExternalLink.postMessage(url);
-  else window.open(url,'_blank','noopener');
-};
-
-window.connectTelegram=async function(){
-  try{
-    const result=await api.createTelegramLink();
-    if(result.linked){
-      STATE.currentUser.telegram_chat_id='linked';
-      toast('Telegram is already connected.');
-      nav('messages');
-      return;
-    }
-    openModal(`<div class="modal-header"><div class="modal-title">Connect Telegram</div><button class="modal-close" onclick="closeModal()">✕</button></div><div class="modal-body"><p class="ts">This one-time link expires in ${result.expiresInMinutes} minutes.</p><button class="btn btn-primary" data-url="${result.linkUrl}" onclick="openTelegramLink(this.dataset.url)">Open Telegram</button></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
-  }catch(error){
-    toast(error.message||'Could not create a Telegram link.','error');
-  }
-};
 
 function openComposeModal(){
   const u=STATE.currentUser;
@@ -3051,7 +3092,7 @@ function pgProfile(el){
   const subjects = STATE.subjects || [];
   const teacherStudents = u.role==='teacher' ? STATE.students.filter(s=>s.section===u.section && s.grade===u.grade && s.status==='active') : [];
   const classGrades = teacherStudents.flatMap(s=>{ const g = STATE.grades[s.id]; return g ? subjects.map(sub=>safeAverage(g[sub])).filter(score=>score!==null) : []; });
-  const classAvg = classGrades.length ? Math.round(classGrades.reduce((a,b)=>a+b,0)/classGrades.length) : 0;
+  const classAvg = averageScores(classGrades) ?? 0;
   const lowPerformers = teacherStudents.filter(s=>{ const g = STATE.grades[s.id]; return g && subjects.some(sub=>{const score=safeAverage(g[sub]);return score!==null&&score<75;}); }).length;
   const teacherAttendance = teacherStudents.length ? Math.round(teacherStudents.reduce((sum,s)=>{ const at = STATE.attendance[s.id]; return sum + (at?.total ? at.present/at.total : 0); },0)/teacherStudents.length * 100) : 0;
   const childGrades = child ? STATE.grades[child.id] : null;
@@ -3267,7 +3308,7 @@ function pgReports(el){
       <div class="card-header"><div class="card-title" style="margin:0">Subject Averages</div></div>
       ${STATE.subjects.map(sub=>{
         let vals=[];myStudents.forEach(s=>{const g=STATE.grades[s.id];const score=g?safeAverage(g[sub]):null;if(score!==null) vals.push(score);});
-        const sa=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
+        const sa=averageScores(vals) ?? 0;
         const shownAverage=grade1Cohort?gradeDisplay({grade:'Grade 1'},sa):sa;
         return `<div class="prog-wrap">
           <div class="prog-top"><span class="ts fw6">${STATE.subjectLabels[sub]}</span><span class="badge ${gbadge(sa)}">${shownAverage}</span></div>
@@ -3430,7 +3471,7 @@ function pgRanking(el){
       const t=STATE.teachers.find(x=>x.id===c.teacherId);
       const clsStudents = allActive.filter(s=>s.grade===c.grade&&s.section===c.section);
       const avgs = clsStudents.map(s=>studentAvg(s.id)).filter(v=>v>0);
-      const clsAvg = avgs.length?Math.round(avgs.reduce((a,b)=>a+b,0)/avgs.length):0;
+      const clsAvg = averageScores(avgs) ?? 0;
       const honorCount = clsStudents.filter(s=>getHonors(studentAvg(s.id))).length;
       return `<div class="card" style="cursor:pointer" onclick="viewClassRanking('${c.grade}','${c.section}')">
         <div class="flex aic gap-12 mb-12">
@@ -3466,9 +3507,9 @@ function pgReportCard(el){
     const g = STATE.grades[s.id]||{};
     const at = STATE.attendance[s.id]||{present:0,absent:0,late:0,total:0};
     const teacher = STATE.teachers.find(t=>t.grade===s.grade&&t.section===s.section);
-    const gradesForStudent = STATE.subjects.map(sub => safeAverage(g[sub] || []));
-    const validAverages = gradesForStudent.filter(v => v !== null);
-    const ov = validAverages.length ? Math.round(validAverages.reduce((a,b)=>a+b,0) / validAverages.length) : null;
+    const studentSubjects = STATE.subjectSets[s.grade] || STATE.subjects;
+    const gradesForStudent = studentSubjects.map(sub => safeAverage(g[sub] || []));
+    const ov = averageScores(gradesForStudent);
     const honors = ov !== null ? getHonors(ov) : null;
 
     el.innerHTML = `
@@ -3516,7 +3557,7 @@ function pgReportCard(el){
             return `<tr><td class="rc-subject">${STATE.subjectLabels[sub]}</td>${scores.map(sc=>`<td class="rc-score" style="${Number.isFinite(sc)&&sc>0&&sc<75?'color:var(--red);font-weight:700':Number.isFinite(sc)&&sc>=90?'color:var(--green);font-weight:700':''}">${Number.isFinite(sc)&&sc>0 ? gradeDisplay(s,sc) : '—'}</td>`).join('')}<td class="rc-final" style="color:${fin !== null ? gcol(fin) : 'var(--text3)'}">${fin !== null ? finalLetter : '—'}</td><td class="rc-desc">${fin !== null ? (descriptor?.name||glabel(fin)) : '—'}</td></tr>`;
           }).join('')}
           <tr class="rc-total-row"><td class="rc-subject">General Average</td>
-            ${STATE.quarters.slice(0,4).map((_,qi)=>{ const vals=STATE.subjects.map(sub => Number.isFinite(g[sub]?.[qi]) && g[sub][qi] > 0 ? g[sub][qi] : null).filter(v => v !== null); const qa = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null; return `<td class="rc-score" style="color:${qa !== null ? gcol(qa) : 'var(--text3)'}">${qa !== null ? gradeDisplay(s,qa) : '—'}</td>`; }).join('')}
+            ${STATE.quarters.slice(0,4).map((_,qi)=>{ const vals=studentSubjects.map(sub => Number.isFinite(g[sub]?.[qi]) && g[sub][qi] > 0 ? g[sub][qi] : null); const qa = averageScores(vals); return `<td class="rc-score" style="color:${qa !== null ? gcol(qa) : 'var(--text3)'}">${qa !== null ? gradeDisplay(s,qa) : '—'}</td>`; }).join('')}
             <td class="rc-final" style="font-size:16px;color:${ov !== null ? gcol(ov) : 'var(--text3)'}">${ov !== null ? gradeDisplay(s,ov) : '—'}</td><td class="rc-desc">${ov !== null ? (grade1Descriptor(gradeDisplay(s,ov))?.name||glabel(ov)) : '—'}</td></tr>
         </tbody>
       </table>

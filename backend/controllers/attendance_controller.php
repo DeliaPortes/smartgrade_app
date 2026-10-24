@@ -13,8 +13,10 @@ function handle_attendance($method, $id) {
             $stmt = $pdo->prepare('SELECT a.* FROM attendance a JOIN students s ON s.id = a.student_id WHERE s.teacher_id = ?');
             $stmt->execute([$user['linked_id']]);
         } elseif ($user['role'] === 'parent') {
-            $stmt = $pdo->prepare('SELECT * FROM attendance WHERE student_id = ?');
-            $stmt->execute([$user['child_id']]);
+            $stmt = $pdo->prepare('SELECT a.* FROM attendance a
+                JOIN students s ON s.id = a.student_id
+                WHERE s.parent_id = ?');
+            $stmt->execute([$user['linked_id']]);
         } else {
             $stmt = $pdo->query('SELECT * FROM attendance');
         }

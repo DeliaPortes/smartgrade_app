@@ -145,7 +145,6 @@ const api = {
   // ── Messages ──────────────────────────────────────────────────────────────
   getMessages()       { return apiFetch("/messages"); },
   sendMessage(data)   { return apiFetch("/messages", { method:"POST", body: data }); },
-  createTelegramLink(){ return apiFetch("/messages/telegram-link", { method:"POST", body:{} }); },
   markRead(id)        { return apiFetch(`/messages/${id}/read`, { method:"PATCH" }); },
 
   // ── Announcements ─────────────────────────────────────────────────────────
@@ -188,6 +187,7 @@ async function syncStateFromAPI() {
       ]);
 
     if (students)      STATE.students      = _mapStudents(students);
+    if (STATE.currentUser?.role === "parent") resolveParentChildId(STATE.currentUser);
     if (teachers)      STATE.teachers      = _mapTeachers(teachers);
     if (parents)       STATE.parents       = _mapParents(parents);
     if (classes)       STATE.classes       = _mapClasses(classes);

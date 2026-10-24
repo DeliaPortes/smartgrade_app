@@ -20,6 +20,9 @@ function handle_login() {
     if (!$user || !password_verify($password, $user['password'])) {
         json_error('Invalid email or password.', 401);
     }
+    if ($user['role'] === 'parent' && !parent_has_linked_student($pdo, $user['linked_id'])) {
+        json_error('Parent account is not linked to a student. Please contact the school.', 403);
+    }
 
     $token = generate_token($user['id']);
     $user = enrich_user($user);

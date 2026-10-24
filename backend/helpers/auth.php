@@ -25,6 +25,12 @@ function get_bearer_token() {
     return null;
 }
 
+function parent_has_linked_student($pdo, $parentId) {
+    $stmt = $pdo->prepare('SELECT 1 FROM students WHERE parent_id = ? LIMIT 1');
+    $stmt->execute([$parentId]);
+    return (bool) $stmt->fetchColumn();
+}
+
 /**
  * Validates the bearer token and returns the full user row (joined with
  * role-specific info) or sends a 401 and exits if invalid/missing.
@@ -38,6 +44,9 @@ function require_auth() {
     $stmt->execute([$token]);
     $user = $stmt->fetch();
     if (!$user) json_error('Invalid or expired token.', 401);
+    if ($user['role'] === 'parent' && !parent_has_linked_student($pdo, $user['linked_id'])) {
+        json_error('Parent account is not linked to a student. Please contact the school.', 403);
+    }
 
     return enrich_user($user);
 }
@@ -57,7 +66,7 @@ function enrich_user($user) {
         $user['section']    = $t['section'] ?? null;
         $user['teacher_id'] = $user['linked_id'];
     } elseif ($user['role'] === 'parent') {
-        $stmt = $pdo->prepare('SELECT id FROM students WHERE parent_id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id FROM students WHERE parent_id = ? ORDER BY id LIMIT 1');
         $stmt->execute([$user['linked_id']]);
         $s = $stmt->fetch();
         $user['child_id'] = $s['id'] ?? null;

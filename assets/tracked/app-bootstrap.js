@@ -43,6 +43,12 @@ window.doLogin = async function() {
       toast(apiErr.message || "TrackEd is currently unavailable.", "error");
       return;
     }
+    if (localUser.role === "parent" &&
+        !STATE.students.some(student => String(student.parentId) === String(localUser.id))) {
+      if (btn) { btn.textContent = "Sign In to TrackEd"; btn.disabled = false; }
+      toast("Parent accounts must be linked to a student before signing in.", "error");
+      return;
+    }
     user = { ...localUser };
     STATE.currentUser = user;
   }

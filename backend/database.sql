@@ -219,7 +219,7 @@ INSERT INTO classes (id,grade,section,teacher_id,year) VALUES
 INSERT INTO grades (student_id,subject,q1,q2,q3,q4) VALUES
 ('S001','makabansa',88,85,89,87),('S001','math',88,92,85,90),('S001','gmrc',0,0,0,0),('S001','reading_literacy',85,88,82,87),('S001','language',92,94,90,93),
 ('S002','makabansa',78,80,81,82),('S002','math',78,82,80,84),('S002','gmrc',0,0,0,0),('S002','reading_literacy',76,79,78,80),('S002','language',80,82,78,83),
-('S003','makabansa',91,93,90,94),('S003','math',95,97,93,96),('S003','gmrc',0,0,0,0),('S003','reading_literacy',90,93,88,92),('S003','language',85,87,84,88),
+('S003','makabansa',91,93,90,94),('S003','math',95,97,93,96),('S003','gmrc',88,90,89,92),('S003','reading_literacy',90,93,88,92),('S003','language',85,87,84,88),
 ('S004','math',82,85,80,84),('S004','science',79,81,78,82),('S004','english',88,90,86,89),('S004','filipino',86,88,84,87),('S004','gmrc',0,0,0,0),('S004','ap',83,85,82,86),('S004','writing',0,0,0,0),
 ('S005','math',78,80,76,82),('S005','science',79,78,81,80),('S005','english',77,76,79,78),('S005','filipino',75,77,78,80),('S005','gmrc',0,0,0,0),('S005','ap',76,78,79,77),('S005','writing',0,0,0,0),
 ('S006','math',90,93,88,92),('S006','science',85,87,83,89),('S006','english',88,91,86,90),('S006','filipino',92,94,90,93),('S006','gmrc',0,0,0,0),('S006','ap',87,89,85,91),('S006','writing',0,0,0,0),

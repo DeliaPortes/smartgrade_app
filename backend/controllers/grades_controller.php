@@ -40,8 +40,10 @@ function handle_grades($method, $id, $sub) {
             $stmt = $pdo->prepare('SELECT g.* FROM grades g JOIN students s ON s.id = g.student_id WHERE s.teacher_id = ?');
             $stmt->execute([$user['linked_id']]);
         } elseif ($user['role'] === 'parent') {
-            $stmt = $pdo->prepare('SELECT g.* FROM grades g WHERE g.student_id = ?');
-            $stmt->execute([$user['child_id']]);
+            $stmt = $pdo->prepare('SELECT g.* FROM grades g
+                JOIN students s ON s.id = g.student_id
+                WHERE s.parent_id = ?');
+            $stmt->execute([$user['linked_id']]);
         } else {
             $stmt = $pdo->query('SELECT * FROM grades');
         }
