@@ -3,6 +3,22 @@ if (typeof emailjs !== 'undefined') {
   try { emailjs.init({ publicKey: 'V2d1p81KvRc5qfwyZ' }); } catch(e) {}
 }
 
+function wireFormLabels(root = document) {
+  root.querySelectorAll('label:not([for])').forEach(label => {
+    const control = label.parentElement?.querySelector('input, select, textarea');
+    if (!control) return;
+    if (!control.id) control.id = `field-${Math.random().toString(36).slice(2, 10)}`;
+    label.htmlFor = control.id;
+  });
+}
+
+wireFormLabels();
+new MutationObserver(mutations => mutations.forEach(mutation => {
+  mutation.addedNodes.forEach(node => {
+    if (node.nodeType === Node.ELEMENT_NODE) wireFormLabels(node);
+  });
+})).observe(document.body, { childList: true, subtree: true });
+
 /* ════════════════════════════════════════
    STATE — reactive data store
    ════════════════════════════════════════ */
@@ -24,9 +40,9 @@ const STATE = {
   ],
 
   teachers: [
-    {id:'T001',name:'Ms. Maria Santos',email:'teacher@smartgrade.edu',phone:'09171111111',grade:'Grade 1',section:'Sampaguita',subjects:'All Subjects',status:'active',joined:'2020-06-01'},
-    {id:'T002',name:'Mr. Pedro Reyes',email:'preyes@smartgrade.edu',phone:'09182222222',grade:'Grade 2',section:'Rosal',subjects:'All Subjects',status:'active',joined:'2019-06-01'},
-    {id:'T003',name:'Ms. Carmen Lim',email:'clim@smartgrade.edu',phone:'09193333333',grade:'Grade 3',section:'Gumamela',subjects:'All Subjects',status:'active',joined:'2021-06-01'},
+    {id:'T001',name:'Ms. Maria Santos',email:'teacher@tracked.edu',phone:'09171111111',grade:'Grade 1',section:'Sampaguita',subjects:'All Subjects',status:'active',joined:'2020-06-01'},
+    {id:'T002',name:'Mr. Pedro Reyes',email:'preyes@tracked.edu',phone:'09182222222',grade:'Grade 2',section:'Rosal',subjects:'All Subjects',status:'active',joined:'2019-06-01'},
+    {id:'T003',name:'Ms. Carmen Lim',email:'clim@tracked.edu',phone:'09193333333',grade:'Grade 3',section:'Gumamela',subjects:'All Subjects',status:'active',joined:'2021-06-01'},
   ],
 
   parents: [
@@ -50,13 +66,13 @@ const STATE = {
 
   grades: {
     S001:{math:[88,92,85,90],science:[90,87,93,91],english:[85,88,82,87],filipino:[92,94,90,93],ap:[88,85,89,87]},
-    S002:{math:[75,78,72,80],science:[82,79,85,81],english:[70,73,68,75],filipino:[80,82,78,83],ap:[77,75,80,78]},
+    S002:{math:[78,82,80,84],science:[82,79,85,81],english:[76,79,78,80],filipino:[80,82,78,83],ap:[77,75,80,78]},
     S003:{math:[95,97,93,96],science:[88,91,89,92],english:[90,93,88,92],filipino:[85,87,84,88],ap:[91,93,90,94]},
     S004:{math:[82,85,80,84],science:[79,81,78,82],english:[88,90,86,89],filipino:[86,88,84,87],ap:[83,85,82,86]},
-    S005:{math:[65,68,62,70],science:[72,70,75,71],english:[68,65,70,67],filipino:[75,77,73,76],ap:[70,68,72,69]},
+    S005:{math:[78,80,76,82],science:[79,78,81,80],english:[77,76,79,78],filipino:[75,77,78,80],ap:[76,78,79,77]},
     S006:{math:[90,93,88,92],science:[85,87,83,89],english:[88,91,86,90],filipino:[92,94,90,93],ap:[87,89,85,91]},
-    S007:{math:[78,80,75,82],science:[84,86,81,85],english:[76,79,73,80],filipino:[82,84,80,85],ap:[79,81,77,83]},
-    S008:{math:[72,74,70,76],science:[78,75,80,77],english:[74,72,76,73],filipino:[77,79,75,78],ap:[73,71,75,72]},
+    S007:{math:[78,80,75,82],science:[84,86,81,85],english:[76,79,77,80],filipino:[82,84,80,85],ap:[79,81,77,83]},
+    S008:{math:[78,80,76,81],science:[78,79,80,77],english:[76,78,79,77],filipino:[77,79,78,80],ap:[76,78,79,77]},
     S009:{math:[86,88,84,89],science:[80,82,78,83],english:[84,86,82,87],filipino:[88,90,86,91],ap:[82,84,80,85]},
     S010:{math:[91,93,89,94],science:[87,89,85,90],english:[89,91,87,92],filipino:[93,95,91,96],ap:[85,87,83,88]},
   },
@@ -83,11 +99,12 @@ const STATE = {
   ],
 
   announcements: [
-    {id:1,title:'Q3 Report Cards Now Ready for Pickup',body:'Grade 1, 2, and 3 report cards for the 3rd quarter are now available at the Registrar\'s Office. Please bring a valid government-issued ID. Parents must sign the logbook upon claiming. Office hours: Monday to Friday, 8:00 AM to 5:00 PM.',date:'2025-01-25',audience:'all',author:'Principal Cruz',priority:'high',authorRole:'admin'},
     {id:2,title:'Parent-Teacher Conference – February 5, 2025',body:'The quarterly Parent-Teacher Conference is scheduled on Wednesday, February 5, 2025 from 8:00 AM to 12:00 NN. All parents of Grade 1, 2, and 3 students are strongly encouraged to attend. Please sign up at the front office or contact your child\'s teacher to confirm your schedule.',date:'2025-01-24',audience:'all',author:'Principal Cruz',priority:'high',authorRole:'admin'},
     {id:3,title:'Reading Program – Grade 1 and 2',body:'All Grade 1 and 2 homeroom teachers must submit their students\' reading assessment results by January 30, 2025. Please use the approved format from the English Department. Submit results to Ms. Reyes at the Academic Office.',date:'2025-01-23',audience:'teacher',author:'Principal Cruz',priority:'normal',authorRole:'admin'},
     {id:4,title:'No Classes – February 25 (EDSA People Power Anniversary)',body:'There will be no classes on Tuesday, February 25, 2025 in observance of the EDSA People Power Revolution Anniversary, a national holiday. Regular classes will resume on Wednesday, February 26, 2025.',date:'2025-01-22',audience:'all',author:'Admin Office',priority:'normal',authorRole:'admin'},
   ],
+
+  assignments: [],
 
   classes: [
     {id:'C001',grade:'Grade 1',section:'Sampaguita',teacherId:'T001',year:'2024-2025'},
@@ -96,13 +113,27 @@ const STATE = {
   ],
 
   users: {
-    teacher:{role:'teacher',id:'teacher',name:'Ms. Maria Santos',email:'teacher@smartgrade.edu',password:'password123',grade:'Grade 1',section:'Sampaguita',teacherId:'T001'},
+    teacher:{role:'teacher',id:'teacher',name:'Ms. Maria Santos',email:'teacher@tracked.edu',password:'password123',grade:'Grade 1',section:'Sampaguita',teacherId:'T001'},
+    teacher2:{role:'teacher',id:'T002',name:'Mr. Pedro Reyes',email:'preyes@tracked.edu',password:'password123',grade:'Grade 2',section:'Rosal',teacherId:'T002'},
+    teacher3:{role:'teacher',id:'T003',name:'Ms. Carmen Lim',email:'clim@tracked.edu',password:'password123',grade:'Grade 3',section:'Gumamela',teacherId:'T003'},
     parent:{role:'parent',id:'P003',name:'Mr. Juan Dela Cruz',email:'parent@gmail.com',password:'password123',childIds:['S003'],childId:'S003'},
-    admin:{role:'admin',id:'admin',name:'Principal Roberto Cruz',email:'admin@smartgrade.edu',password:'password123',school:'Polangui South Central School'},
+    parent2:{role:'parent',id:'P004',name:'Mrs. Rosa Santos',email:'rsantos@gmail.com',password:'password123',childIds:['S004'],childId:'S004'},
+    parent3:{role:'parent',id:'P005',name:'Ms. Aileen Lim',email:'alim@gmail.com',password:'password123',childIds:['S005'],childId:'S005'},
+    parent4:{role:'parent',id:'P006',name:'Mr. Bobby Torres',email:'btorres@gmail.com',password:'password123',childIds:['S006'],childId:'S006'},
+    parent5:{role:'parent',id:'P007',name:'Mrs. Nena Ramos',email:'nramos@gmail.com',password:'password123',childIds:['S007'],childId:'S007'},
+    parent6:{role:'parent',id:'P008',name:'Mr. Anthony Tan',email:'atan@gmail.com',password:'password123',childIds:['S008'],childId:'S008'},
+    parent7:{role:'parent',id:'P009',name:'Mrs. Paz Cruz',email:'pcruz@gmail.com',password:'password123',childIds:['S009'],childId:'S009'},
+    parent8:{role:'parent',id:'P010',name:'Mr. Leo Bautista',email:'lbautista@gmail.com',password:'password123',childIds:['S010'],childId:'S010'},
+    admin:{role:'admin',id:'admin',name:'Principal Roberto Cruz',email:'admin@tracked.edu',password:'password123',school:'Polangui South Central School'},
   },
 
-  subjects: ['math','science','english','filipino','ap'],
-  subjectLabels: {math:'Mathematics',science:'Science',english:'English',filipino:'Filipino',ap:'Araling Panlipunan'},
+  subjectSets: {
+    'Grade 1': ['makabansa','math','gmrc','reading_literacy','language'],
+    'Grade 2': ['science','math','english','filipino','gmrc','ap','writing'],
+    'Grade 3': ['science','math','english','filipino','gmrc','ap','mapeh'],
+  },
+  get subjects(){ return subjectsForCurrentUser(); },
+  subjectLabels: {math:'Mathematics',science:'Science',english:'English',filipino:'Filipino',gmrc:'GMRC',ap:'Araling Panlipunan',writing:'Writing',mapeh:'MAPEH',makabansa:'Makabansa',reading_literacy:'Reading and Literacy',language:'Language'},
   quarters: ['Q1','Q2','Q3','Q4','Final'],
   nextStudentId: 11,
   nextTeacherId: 4,
@@ -117,6 +148,50 @@ const STATE = {
   attendanceDays: {},
   /* NEW: id counter for parents created by teachers */
   nextParentId: 11,
+};
+
+function subjectsForCurrentUser(){
+  const user = STATE.currentUser;
+  if(user?.role === 'admin') return [...new Set(Object.values(STATE.subjectSets).flat())];
+  let grade = user?.grade;
+  if(user?.role === 'parent') grade = STATE.students.find(s=>s.id===user.childId)?.grade;
+  if(grade && STATE.subjectSets[grade]) return STATE.subjectSets[grade];
+  return [];
+}
+
+window.openLegal = function(kind){
+  const isPrivacy = kind === 'privacy';
+  const title = isPrivacy ? 'Privacy Policy' : 'Terms and Conditions';
+  const buttonLabel = isPrivacy ? 'Close' : 'I Agree';
+  const content = isPrivacy ? `
+    <p class="legal-intro">We want you to know exactly how TrackEd uses your information. This policy explains what we collect, why we use it, and how we protect school records.</p>
+    <div class="legal-accordion">
+      <details open><summary>What information do we collect about you?</summary><div class="legal-answer">We collect account details, names, contact information, role and grade assignments, student identifiers, grades, attendance, messages, announcements, and profile changes needed to operate the school system.</div></details>
+      <details><summary>How do we use your information?</summary><div class="legal-answer">We use it to sign you in, show the correct role-based dashboard, manage classes and grades, record attendance, send school messages, and notify authorized parents or teachers about academic updates.</div></details>
+      <details><summary>To whom do we disclose your information?</summary><div class="legal-answer">Information is shown only to authorized users according to their account role and school relationship. We do not sell student information.</div></details>
+      <details><summary>What do we do to keep information secure?</summary><div class="legal-answer">The app uses authenticated access and role-based permissions. Keep your password private, sign out on shared devices, and report suspicious access to the school administrator.</div></details>
+      <details><summary>Cookies, storage, and tracking</summary><div class="legal-answer">TrackEd does not use advertising or analytics trackers. It uses functional browser or WebView storage for sessions and remembered login details.</div></details>
+    </div>
+  ` : `
+    <p class="legal-intro">To use TrackEd, please read and accept these Terms and Conditions.</p>
+    <div class="legal-scroll-copy">
+      <p><strong>Authorized use</strong></p>
+      <p>Use this app only for legitimate school activities and only for records you are authorized to view or change. Do not access, share, alter, delete, scrape, or attempt to bypass access controls for another user's information.</p>
+      <p><strong>Account responsibilities</strong></p>
+      <p>Keep your login credentials private, use a suitable password, sign out on shared devices, and report suspected unauthorized access. You are responsible for the accuracy of information you submit.</p>
+      <p><strong>Confidential school information</strong></p>
+      <p>Student records, grades, attendance, messages, and contact details are confidential. Share them only with authorized recipients and use TrackEd messaging for relevant school communication.</p>
+      <p><strong>Service limits</strong></p>
+      <p>TrackEd is provided for the current school workflow. The school operator may add rules about retention, contacts, and account access.</p>
+    </div>
+  `;
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.innerHTML = `<div class="modal legal-modal"><div class="modal-header"><div class="modal-title">${title}</div><button class="modal-close" type="button" aria-label="Close ${title}" onclick="this.closest('.modal-bg').remove()">✕</button></div><div class="modal-body legal-body">${content}</div><div class="modal-footer"><button class="btn btn-primary" type="button" onclick="this.closest('.modal-bg').remove()">${buttonLabel}</button></div></div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.modal-close').focus();
 };
 
 /* ════════════════════════════════════════
@@ -262,11 +337,55 @@ document.addEventListener('DOMContentLoaded', function(){
 /* ════════════════════════════════════════
    HELPERS
    ════════════════════════════════════════ */
-const avg = a => a&&a.length ? Math.round(a.reduce((s,v)=>s+v,0)/a.length) : 0;
-const ini = n => n.split(' ').filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
-const glabel = n => n>=90?'Outstanding':n>=85?'Very Satisfactory':n>=80?'Satisfactory':n>=75?'Fairly Satisfactory':'Did Not Meet';
+const normalizeGradeValue = value => {
+  const score = Number(value);
+  return Number.isFinite(score) && score >= 0 && score <= 100 ? score : 0;
+};
+const avg = a => {
+  if (!Array.isArray(a) || !a.length) return 0;
+  const values = a.map(normalizeGradeValue).filter(v => Number.isFinite(v) && v > 0);
+  return values.length ? Math.round(values.reduce((s, v) => s + v, 0) / values.length) : 0;
+};
+const validGrades = arr => Array.isArray(arr) ? arr.map(normalizeGradeValue).filter(v => Number.isFinite(v) && v > 0) : [];
+const safeAverage = arr => {
+  const valid = validGrades(arr);
+  return valid.length ? Math.round(valid.reduce((s, v) => s + v, 0) / valid.length) : null;
+};
+const averageScores = scores => {
+  const valid = scores.map(normalizeGradeValue).filter(score => score > 0);
+  return valid.length ? Math.round(valid.reduce((sum, score) => sum + score, 0) / valid.length) : null;
+};
+const overallAvg = (grades, subjects = STATE.subjects) => {
+  const scores = subjects.map(subject => safeAverage(grades?.[subject])).filter(score => score !== null);
+  return scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0;
+};
+const ini = n => n.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+const glabel = n => {
+  const value = normalizeGradeValue(n);
+  return value >= 90 ? 'Outstanding' : value >= 85 ? 'Very Satisfactory' : value >= 80 ? 'Satisfactory' : value >= 75 ? 'Fairly Satisfactory' : 'Did Not Meet';
+};
+const grade1Scale = [
+  {letter:'A',value:95,name:'Advancing (Namumukod-tangi)',description:'Consistently demonstrates advanced skills, understanding, and values beyond expectations; applies learning independently, confidently, and with initiative across tasks and situations.'},
+  {letter:'B',value:85,name:'Benchmarking (Naipamamalas)',description:'Demonstrates expected skills, understanding, and values at grade level with consistency; performs tasks accurately and independently in most situations.'},
+  {letter:'C',value:75,name:'Connecting (Natutungo)',description:'Shows developing skills, understanding, and values; able to apply learning in familiar tasks with minimal guidance and support.'},
+  {letter:'D',value:65,name:'Developing (Nagpapaunlad)',description:'Demonstrates emerging skills, understanding, and values; requires regular guidance, practice, and support to improve performance.'},
+  {letter:'E',value:55,name:'Emerging (Nagsisimula)',description:'Beginning to demonstrate basic skills, understanding, and values; requires close supervision, structured support, and targeted intervention.'},
+];
+const gradeDisplay = (student, score) => {
+  const value = normalizeGradeValue(score);
+  if (value <= 0) return '—';
+  if (student?.grade !== 'Grade 1') return value;
+  return grade1Scale.reduce((closest, level) => Math.abs(level.value - value) < Math.abs(closest.value - value) ? level : closest).letter;
+};
+const grade1Descriptor = score => grade1Scale.find(level=>level.letter===score);
 const gbadge = n => n>=90?'bg-green':n>=80?'bg-blue':n>=75?'bg-amber':'bg-red';
 const gcol = n => n>=90?'var(--green)':n>=80?'var(--blue)':n>=75?'var(--amber)':'var(--red)';
+const gradeColor = (student, score) => {
+  if (normalizeGradeValue(score) <= 0) return 'var(--text3)';
+  if (student?.grade !== 'Grade 1') return gcol(score);
+  const level = grade1Scale.find(item => item.letter === gradeDisplay(student, score));
+  return gcol(level?.value ?? score);
+};
 const svgIco = {
   home:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`,
   people:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`,
@@ -287,6 +406,27 @@ function toast(msg, type='success'){
   t.innerHTML = (type==='success'?'✓':type==='error'?'✕':'ℹ') + ` ${msg}`;
   document.getElementById('toast-container').appendChild(t);
   setTimeout(()=>t.remove(), 3200);
+}
+
+function downloadToast(filename, uri, notificationsEnabled){
+  const item=document.createElement('div');
+  item.className='toast toast-success';
+  const message=document.createElement('span');
+  const location=uri&&uri.startsWith('content://')?'Downloads':'your device';
+  message.textContent=notificationsEnabled
+    ? `${filename} saved to ${location}.`
+    : `${filename} saved to ${location}. Turn on TrackEd notifications to see download alerts.`;
+  item.appendChild(message);
+  if(uri && uri.startsWith('content://') && window.TrackEdOpenDownload){
+    const open=document.createElement('button');
+    open.type='button';
+    open.className='download-open-btn';
+    open.textContent='Open / Share';
+    open.onclick=()=>window.TrackEdOpenDownload.postMessage(JSON.stringify({filename,uri}));
+    item.appendChild(open);
+  }
+  document.getElementById('toast-container').appendChild(item);
+  setTimeout(()=>item.remove(),10000);
 }
 
 function showConfirm(title, msg, onYes){
@@ -357,16 +497,32 @@ function setTopbarAvatar(user){
 }
 
 function openNotifications(){
-  markNotificationsRead();
+  toggleNotifications();
+}
+
+function notificationTarget(notification){
+  const text = `${notification.title} ${notification.body}`.toLowerCase();
+  if(text.includes('grade') || text.includes('academic')) return 'grades';
+  if(text.includes('message')) return 'messages';
+  if(text.includes('news') || text.includes('announcement')) return 'announcements';
+  return 'announcements';
+}
+
+function openNotification(index){
+  const notification = STATE.notifications[index];
+  if(!notification) return;
+  notification.read = true;
   updateUnreadBadge();
-  nav('announcements');
+  document.getElementById('notif-dropdown')?.remove();
+  document.removeEventListener('click', hideNotificationDropdown);
+  nav(notificationTarget(notification));
 }
 
 function toggleNotifications(){
   const existing = document.getElementById('notif-dropdown');
   if(existing){ existing.remove(); return; }
-  const list = STATE.notifications.map(n=>`
-    <div class="notif-item ${n.type==='high'?'high':''}">
+  const list = STATE.notifications.map((n,index)=>`
+    <div class="notif-item ${n.type==='high'?'high':''}" onclick="openNotification(${index})">
       <div class="notif-item-title">${n.title}</div>
       <div class="notif-item-body">${n.body}</div>
       <div class="notif-item-time">${n.time}</div>
@@ -465,7 +621,19 @@ function togglePasswordVisibility(){
   if(!passInput || !toggleBtn) return;
   const isHidden = passInput.type === 'password';
   passInput.type = isHidden ? 'text' : 'password';
-  toggleBtn.innerHTML = `<i class="fa-solid ${isHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>`;
+  toggleBtn.innerHTML = isHidden
+    ? '<svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A10.8 10.8 0 0 1 12 20C5.5 20 2 12 2 12a18.8 18.8 0 0 1 4.1-5.8L1.6 4.4 3 3zm5.1 5.1A5 5 0 0 0 15.9 16l-1.6-1.6A3.2 3.2 0 0 1 9.6 9.7L8.1 8.1zM12 4c6.5 0 10 8 10 8a19 19 0 0 1-2.4 3.7l-1.5-1.5A17 17 0 0 0 19.8 12S16.5 6 12 6c-1 0-1.9.2-2.7.5L7.8 4A11.2 11.2 0 0 1 12 4z"/></svg>'
+    : '<svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zm10 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg>';
+  toggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+}
+function toggleFieldPassword(inputId, toggleBtn){
+  const passInput = document.getElementById(inputId);
+  if(!passInput || !toggleBtn) return;
+  const isHidden = passInput.type === 'password';
+  passInput.type = isHidden ? 'text' : 'password';
+  toggleBtn.innerHTML = isHidden
+    ? '<svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A10.8 10.8 0 0 1 12 20C5.5 20 2 12 2 12a18.8 18.8 0 0 1 4.1-5.8L1.6 4.4 3 3zm5.1 5.1A5 5 0 0 0 15.9 16l-1.6-1.6A3.2 3.2 0 0 1 9.6 9.7L8.1 8.1zM12 4c6.5 0 10 8 10 8a19 19 0 0 1-2.4 3.7l-1.5-1.5A17 17 0 0 0 19.8 12S16.5 6 12 6c-1 0-1.9.2-2.7.5L7.8 4A11.2 11.2 0 0 1 12 4z"/></svg>'
+    : '<svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zm10 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg>';
   toggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
 }
 
@@ -481,11 +649,11 @@ const navMenus = {
     {id:'attendance',l:'Attendance',ic:'cal'},
     {s:'Communication'},
     {id:'messages',l:'Messages',ic:'msg'},
+    {id:'assignments',l:'Assignments',ic:'grade'},
     {id:'announcements',l:'Announcements',ic:'bell'},
     {s:'Tools'},
     {id:'reports',l:'Reports',ic:'chart'},
     {id:'ranking',l:'Class Ranking',ic:'trophy'},
-    {id:'reportcard',l:'Report Card',ic:'grade'},
     {s:'Management'},
     {id:'parents',l:'Manage Parents',ic:'people'},
   ],
@@ -494,9 +662,9 @@ const navMenus = {
     {s:"My Child"},
     {id:'grades',l:'Academic Record',ic:'grade'},
     {id:'attendance',l:'Attendance',ic:'cal'},
-    {id:'reportcard',l:'Report Card',ic:'grade'},
     {s:'Communication'},
     {id:'messages',l:'Messages',ic:'msg'},
+    {id:'assignments',l:'Assignments',ic:'grade'},
     {id:'announcements',l:'School News',ic:'bell'},
   ],
   admin:[
@@ -509,7 +677,6 @@ const navMenus = {
     {id:'grades',l:'Grade Overview',ic:'grade'},
     {id:'attendance',l:'Attendance',ic:'cal'},
     {id:'ranking',l:'School Ranking',ic:'trophy'},
-    {id:'reportcard',l:'Report Card',ic:'grade'},
     {s:'Administration'},
     {id:'approvals',l:'Teacher Approvals',ic:'check'},
     {s:'Communication'},
@@ -558,12 +725,78 @@ function nav(page){
   c.innerHTML='';
   const role = STATE.currentUser.role;
   const pages = {
-    teacher:{dashboard:pgTeacherDash,students:pgStudents,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,announcements:pgAnnouncements,reports:pgReports,profile:pgProfile,ranking:pgRanking,reportcard:pgReportCard,parents:pgParentsTeacher},
-    parent:{dashboard:pgParentDash,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,announcements:pgAnnouncements,profile:pgProfile,reportcard:pgReportCard},
-    admin:{dashboard:pgAdminDash,students:pgStudents,teachers:pgTeachers,parents:pgParents,classes:pgClasses,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,announcements:pgAnnouncements,reports:pgReports,profile:pgProfile,ranking:pgRanking,reportcard:pgReportCard,approvals:pgApprovals}
+    teacher:{dashboard:pgTeacherDash,students:pgStudents,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,assignments:pgAssignments,announcements:pgAnnouncements,reports:pgReports,profile:pgProfile,ranking:pgRanking,parents:pgParentsTeacher},
+    parent:{dashboard:pgParentDash,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,assignments:pgAssignments,announcements:pgAnnouncements,profile:pgProfile},
+    admin:{dashboard:pgAdminDash,students:pgStudents,teachers:pgTeachers,parents:pgParents,classes:pgClasses,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,announcements:pgAnnouncements,reports:pgReports,profile:pgProfile,ranking:pgRanking,approvals:pgApprovals}
   };
   (pages[role]?.[page] || (()=>{ c.innerHTML='<div class="empty-state"><div class="es-icon">🔍</div><div class="es-title">Page not found</div></div>'; }))(c);
 }
+
+function assignmentDateToday(){
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+}
+
+function escapeAssignmentText(value){
+  return String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+}
+
+function pgAssignments(el){
+  const isTeacher = STATE.currentUser.role === 'teacher';
+  const assignments = [...(STATE.assignments || [])].sort((a,b) =>
+    String(b.assignmentDate).localeCompare(String(a.assignmentDate)) || Number(b.id)-Number(a.id));
+  const today = assignmentDateToday();
+  const subjects = STATE.subjects;
+
+  el.innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Assignments</div><div class="page-sub">${isTeacher ? `${escapeAssignmentText(STATE.currentUser.grade)} – ${escapeAssignmentText(STATE.currentUser.section)}` : 'Assignments for your child’s class'}</div></div>
+    </div>
+    ${isTeacher ? `
+      <form class="card" onsubmit="saveAssignment(event)" style="margin-bottom:18px">
+        <div class="card-header"><div class="card-title" style="margin:0">Post an Assignment</div></div>
+        <div class="form-grid form-row-2">
+          <div class="fg"><label for="as-title">Title*</label><input id="as-title" maxlength="160" required placeholder="e.g. Practice multiplication"></div>
+          <div class="fg"><label for="as-subject">Subject*</label><select id="as-subject" required>${subjects.map(subject=>`<option value="${escapeAssignmentText(subject)}">${escapeAssignmentText(STATE.subjectLabels[subject] || subject)}</option>`).join('')}</select></div>
+          <div class="fg"><label for="as-date">Assignment date*</label><input id="as-date" type="date" value="${today}" onchange="document.getElementById('as-due').min=this.value" required></div>
+          <div class="fg"><label for="as-due">Due date</label><input id="as-due" type="date" min="${today}"></div>
+          <div class="fg" style="grid-column:1/-1"><label for="as-description">Instructions*</label><textarea id="as-description" maxlength="5000" required placeholder="What should students complete?" style="min-height:100px"></textarea></div>
+        </div>
+        <div class="page-actions" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" type="submit">Post Assignment</button></div>
+      </form>` : ''}
+    <div style="display:grid;gap:12px">
+      ${assignments.map(assignment=>`
+        <article class="card" style="overflow-wrap:anywhere">
+          <div class="flex aic jb" style="gap:10px;flex-wrap:wrap;margin-bottom:8px">
+            <span class="badge bg-blue">${escapeAssignmentText(STATE.subjectLabels[assignment.subject] || assignment.subject)}</span>
+            <span class="txs tm">${escapeAssignmentText(assignment.assignmentDate)}</span>
+          </div>
+          <div style="font-size:16px;font-weight:800;margin-bottom:5px">${escapeAssignmentText(assignment.title)}</div>
+          <div class="txs tmm mb-10">${escapeAssignmentText(assignment.grade)} – ${escapeAssignmentText(assignment.section)}${assignment.dueDate ? ` &nbsp;·&nbsp; Due ${escapeAssignmentText(assignment.dueDate)}` : ''}${assignment.author ? ` &nbsp;·&nbsp; By ${escapeAssignmentText(assignment.author)}` : ''}</div>
+          <p class="ts tm" style="line-height:1.7;white-space:pre-wrap;margin:0">${escapeAssignmentText(assignment.description)}</p>
+        </article>`).join('')}
+      ${assignments.length === 0 ? `<div class="card"><div class="empty-state"><div class="es-icon">📝</div><div class="es-title">No assignments yet</div></div></div>` : ''}
+    </div>`;
+}
+
+async function saveAssignment(event){
+  event.preventDefault();
+  const title = document.getElementById('as-title')?.value.trim();
+  const subject = document.getElementById('as-subject')?.value;
+  const assignmentDate = document.getElementById('as-date')?.value;
+  const dueDate = document.getElementById('as-due')?.value || null;
+  const description = document.getElementById('as-description')?.value.trim();
+  if(!title || !subject || !assignmentDate || !description){ toast('Please complete all required assignment fields.','error'); return; }
+  try {
+    const saved = await api.addAssignment({title, subject, assignmentDate, dueDate, description});
+    STATE.assignments.unshift(_mapAssignments([saved])[0]);
+    toast('Assignment posted.');
+    nav('assignments');
+  } catch(error) {
+    toast(error.message || 'Assignment could not be posted.','error');
+  }
+}
+
 /* ════════════════════════════════════════
    ██████████ TEACHER DASHBOARD ██████████
    ════════════════════════════════════════ */
@@ -572,10 +805,10 @@ function pgTeacherDash(el){
   const myStudents = STATE.students.filter(s=>s.section===u.section&&s.grade===u.grade&&s.status==='active');
   const unread = STATE.messages.filter(m=>!m.read&&m.toRole==='teacher'&&m.toId===u.id).length;
   let allScores=[];
-  myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g) STATE.subjects.forEach(sub=>allScores.push(avg(g[sub])));});
+  myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g) STATE.subjects.forEach(sub=>{const score=safeAverage(g[sub]);if(score !== null) allScores.push(score);});});
   const clsAvg = allScores.length?Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length):0;
-  const lowCount = myStudents.filter(s=>{const g=STATE.grades[s.id];return g&&STATE.subjects.some(sub=>avg(g[sub])<75);}).length;
-  const totPres = myStudents.reduce((a,s)=>{const at=STATE.attendance[s.id];return a+(at?at.present:0);},0);
+  const lowCount = myStudents.filter(s=>{const g=STATE.grades[s.id];return g&&STATE.subjects.some(sub=>{const score=safeAverage(g[sub]);return score !== null&&score<75;});}).length;
+  const totPres = myStudents.reduce((a,s)=>{const at=STATE.attendance[s.id];return a+(at?at.present+(at.half_day||0)*0.5:0);},0);
   const totAll  = myStudents.reduce((a,s)=>{const at=STATE.attendance[s.id];return a+(at?at.total:0);},0);
   const attR = totAll?Math.round(totPres/totAll*100):0;
   const today = new Date().toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -591,7 +824,7 @@ function pgTeacherDash(el){
       <div class="hero-sub">${today} &nbsp;·&nbsp; ${u.grade} – ${u.section}</div>
       <div class="hero-kpis">
         <div><div class="hero-kpi-val">${myStudents.length}</div><div class="hero-kpi-lbl">Students</div></div>
-        <div><div class="hero-kpi-val">${clsAvg}</div><div class="hero-kpi-lbl">Class Average</div></div>
+        <div><div class="hero-kpi-val">${u.grade==='Grade 1'?gradeDisplay({grade:u.grade},clsAvg):clsAvg}</div><div class="hero-kpi-lbl">Class Average</div></div>
         <div><div class="hero-kpi-val">${attR}%</div><div class="hero-kpi-lbl">Attendance Rate</div></div>
         <div><div class="hero-kpi-val">${unread}</div><div class="hero-kpi-lbl">Unread Messages</div></div>
       </div>
@@ -600,7 +833,7 @@ function pgTeacherDash(el){
 
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-lbl">My Students</div><div class="stat-val green">${myStudents.length}</div><div class="stat-foot">${u.grade} – ${u.section}</div><div class="stat-bar"><div class="stat-bar-f" style="width:100%;background:var(--green)"></div></div></div>
-    <div class="stat-card"><div class="stat-lbl">Class Average</div><div class="stat-val ${clsAvg>=85?'green':clsAvg>=75?'amber':'red'}">${clsAvg}</div><div class="stat-foot">${glabel(clsAvg)}</div><div class="stat-bar"><div class="stat-bar-f" style="width:${clsAvg}%;background:${gcol(clsAvg)}"></div></div></div>
+    <div class="stat-card"><div class="stat-lbl">Class Average</div><div class="stat-val ${clsAvg>=85?'green':clsAvg>=75?'amber':'red'}">${u.grade==='Grade 1'?gradeDisplay({grade:u.grade},clsAvg):clsAvg}</div><div class="stat-foot">${u.grade==='Grade 1'?gradeDisplay({grade:u.grade},clsAvg):glabel(clsAvg)}</div><div class="stat-bar"><div class="stat-bar-f" style="width:${clsAvg}%;background:${gcol(clsAvg)}"></div></div></div>
     <div class="stat-card"><div class="stat-lbl">Need Attention</div><div class="stat-val ${lowCount>0?'red':'green'}">${lowCount}</div><div class="stat-foot">Students below 75</div><div class="stat-bar"><div class="stat-bar-f" style="width:${myStudents.length?lowCount/myStudents.length*100:0}%;background:var(--red)"></div></div></div>
     <div class="stat-card"><div class="stat-lbl">Unread Messages</div><div class="stat-val ${unread>0?'amber':'green'}">${unread}</div><div class="stat-foot">Parent messages</div><div class="stat-bar"><div class="stat-bar-f" style="width:${Math.min(unread*15,100)}%;background:var(--amber)"></div></div></div>
   </div>
@@ -612,9 +845,10 @@ function pgTeacherDash(el){
       ${myStudents.length===0?`<div class="empty-state"><div class="es-icon">👥</div><div class="es-title">No students found</div></div>`:
         myStudents.map(s=>{
           const g=STATE.grades[s.id];
-          const ov=g?Math.round(STATE.subjects.reduce((a,sub)=>a+avg(g[sub]),0)/STATE.subjects.length):0;
+          const ov=g?overallAvg(g):0;
+          const displayOv=gradeDisplay(s,ov);
           const att=STATE.attendance[s.id];
-          const attRate=att?Math.round(att.present/att.total*100):0;
+          const attRate=att?Math.round((att.present+(att.half_day||0)*0.5)/att.total*100):0;
           return `<div class="flex aic gap-12" style="padding:10px 0;border-bottom:1px solid var(--border)">
             <div class="av av-40 av-green">${ini(s.name)}</div>
             <div class="f1">
@@ -622,7 +856,7 @@ function pgTeacherDash(el){
               <div style="height:4px;background:var(--surface2);border-radius:2px;margin-top:5px"><div style="height:100%;width:${ov}%;background:${gcol(ov)};border-radius:2px;transition:width .6s"></div></div>
             </div>
             <div style="text-align:right">
-              <span class="badge ${gbadge(ov)}">${ov}</span>
+              <span class="badge ${gbadge(ov)}">${displayOv}</span>
               <div class="txs tmm mt-8">${attRate}% present</div>
             </div>
           </div>`;
@@ -663,13 +897,14 @@ function pgTeacherDash(el){
     <div class="card-header"><div class="card-title" style="margin:0">Subject Performance Overview</div><span class="badge bg-gray">${u.grade} – ${u.section}</span></div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
       ${STATE.subjects.map(sub=>{
-        let vals=[];myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g&&g[sub]) vals.push(avg(g[sub]));});
-        const sa=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
+        let vals=[];myStudents.forEach(s=>{const g=STATE.grades[s.id];const score=g?safeAverage(g[sub]):null;if(score !== null) vals.push(score);});
+        const sa=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+        const subjectGrade=sa===null?'—':u.grade==='Grade 1'?gradeDisplay({grade:u.grade},sa):sa;
         return `<div style="padding:16px;background:var(--bg);border-radius:12px;text-align:center">
           <div class="txs tmm fw7" style="text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${STATE.subjectLabels[sub].split(' ')[0]}</div>
-          <div style="font-size:28px;font-weight:800;color:${gcol(sa)};letter-spacing:-1px">${sa}</div>
-          <div style="height:4px;background:var(--surface2);border-radius:2px;margin-top:8px"><div style="height:100%;width:${sa}%;background:${gcol(sa)};border-radius:2px"></div></div>
-          <div class="txs tmm mt-8">${glabel(sa)}</div>
+          <div style="font-size:28px;font-weight:800;color:${sa === null ? 'var(--text3)' : gcol(sa)};letter-spacing:-1px">${subjectGrade}</div>
+          <div style="height:4px;background:var(--surface2);border-radius:2px;margin-top:8px"><div style="height:100%;width:${sa === null ? 0 : sa}%;background:${sa === null ? 'var(--border)' : gcol(sa)};border-radius:2px"></div></div>
+          <div class="txs tmm mt-8">${sa === null ? 'Not graded' : u.grade==='Grade 1'?grade1Descriptor(subjectGrade)?.name: glabel(sa)}</div>
         </div>`;
       }).join('')}
     </div>
@@ -693,13 +928,16 @@ function pgParentDash(el){
   const child = STATE.students.find(s=>s.id===u.childId);
   const g = STATE.grades[u.childId]||{};
   const att = STATE.attendance[u.childId]||{present:0,absent:0,late:0,total:45};
-  const subs = STATE.subjects.map(sub=>avg(g[sub]||[]));
-  const ov = subs.length?Math.round(subs.reduce((a,b)=>a+b,0)/subs.length):0;
-  const attR = att.total?Math.round(att.present/att.total*100):0;
+  const subs = STATE.subjects.map(sub=>safeAverage(g[sub]||[]));
+  const gradedSubs = subs.filter(score=>score !== null);
+  const ov = gradedSubs.length?Math.round(gradedSubs.reduce((a,b)=>a+b,0)/gradedSubs.length):0;
+  const attR = att.total?Math.round((att.present+(att.half_day||0)*0.5)/att.total*100):0;
+  const displayOv=gradeDisplay(child,ov);
   const myMsgs = STATE.messages.filter(m=>m.studentId===u.childId||m.toId===u.id||m.fromId===u.id);
   const unread = myMsgs.filter(m=>!m.read&&m.toId===u.id).length;
-  const bestI = subs.indexOf(Math.max(...subs));
-  const worstI = subs.indexOf(Math.min(...subs));
+  const rankedSubs = subs.map((score,index)=>({score,index})).filter(item=>item.score !== null);
+  const bestI = rankedSubs.length ? rankedSubs.reduce((best,item)=>item.score>best.score?item:best).index : -1;
+  const worstI = rankedSubs.length ? rankedSubs.reduce((worst,item)=>item.score<worst.score?item:worst).index : -1;
   const today = new Date().toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
   el.innerHTML=`
@@ -711,7 +949,7 @@ function pgParentDash(el){
       <div class="hero-name">Welcome, ${u.name.split(' ')[1]}! 👋</div>
       <div class="hero-sub">Monitoring: <strong style="color:#fff">${child?.name||'Your Child'}</strong> &nbsp;·&nbsp; ${child?.grade} – ${child?.section}</div>
       <div class="hero-kpis">
-        <div><div class="hero-kpi-val">${ov}</div><div class="hero-kpi-lbl">Overall Average</div></div>
+        <div><div class="hero-kpi-val">${displayOv}</div><div class="hero-kpi-lbl">Overall Average</div></div>
         <div><div class="hero-kpi-val">${attR}%</div><div class="hero-kpi-lbl">Attendance Rate</div></div>
         <div><div class="hero-kpi-val">${att.absent}</div><div class="hero-kpi-lbl">Days Absent</div></div>
         <div><div class="hero-kpi-val">${unread}</div><div class="hero-kpi-lbl">New Messages</div></div>
@@ -720,10 +958,10 @@ function pgParentDash(el){
   </div>
 
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-lbl">Overall Grade</div><div class="stat-val ${ov>=90?'green':ov>=75?'amber':'red'}">${ov}</div><div class="stat-foot">${glabel(ov)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Overall Grade</div><div class="stat-val ${ov>=90?'green':ov>=75?'amber':'red'}">${displayOv}</div><div class="stat-foot">${child?.grade==='Grade 1'?displayOv:glabel(ov)}</div></div>
     <div class="stat-card"><div class="stat-lbl">Attendance</div><div class="stat-val ${attR>=90?'green':attR>=75?'amber':'red'}">${attR}%</div><div class="stat-foot">${att.present} of ${att.total} days</div></div>
-    <div class="stat-card"><div class="stat-lbl">Best Subject</div><div class="stat-val green">${subs[bestI]}</div><div class="stat-foot">${STATE.subjectLabels[STATE.subjects[bestI]]}</div></div>
-    <div class="stat-card"><div class="stat-lbl">Needs Focus</div><div class="stat-val ${subs[worstI]<75?'red':'amber'}">${subs[worstI]}</div><div class="stat-foot">${STATE.subjectLabels[STATE.subjects[worstI]]}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Best Subject</div><div class="stat-val green">${bestI >= 0 ? gradeDisplay(child,subs[bestI]) : '—'}</div><div class="stat-foot">${bestI >= 0 ? STATE.subjectLabels[STATE.subjects[bestI]] : 'No grades yet'}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Needs Focus</div><div class="stat-val ${worstI >= 0 && subs[worstI]<75?'red':'amber'}">${worstI >= 0 ? gradeDisplay(child,subs[worstI]) : '—'}</div><div class="stat-foot">${worstI >= 0 ? STATE.subjectLabels[STATE.subjects[worstI]] : 'No grades yet'}</div></div>
   </div>
 
   <div class="g2 mb-16">
@@ -734,7 +972,7 @@ function pgParentDash(el){
           <div class="f1">
             <div style="font-size:18px;font-weight:800;letter-spacing:-.3px">${child?.name}</div>
             <div class="ts tm">${child?.grade} – ${child?.section}</div>
-            <div class="txs tmm mt-8">LRN: ${child?.id} &nbsp;·&nbsp; ${child?.gender==='F'?'Female':'Male'}</div>
+            <div class="txs tmm mt-8">LRN: ${child?.lrn||'Not provided'} &nbsp;·&nbsp; ${child?.gender==='F'?'Female':'Male'}</div>
           </div>
           <span class="badge bg-green" style="font-size:12px">${child?.status}</span>
         </div>
@@ -750,8 +988,8 @@ function pgParentDash(el){
         <div class="card-header"><div class="card-title" style="margin:0">Subject Performance</div><button class="btn btn-secondary btn-xs" onclick="nav('grades')">Full Record</button></div>
         ${STATE.subjects.map((sub,i)=>`
           <div class="prog-wrap">
-            <div class="prog-top"><span class="prog-lbl">${STATE.subjectLabels[sub]}</span><span class="badge ${gbadge(subs[i])}">${subs[i]}</span></div>
-            <div class="prog-track"><div class="prog-fill" style="width:${subs[i]}%;background:${gcol(subs[i])}"></div></div>
+            <div class="prog-top"><span class="prog-lbl">${STATE.subjectLabels[sub]}</span><span class="badge ${subs[i] === null ? 'bg-gray' : gbadge(subs[i])}">${subs[i] === null ? '—' : gradeDisplay(child,subs[i])}</span></div>
+            <div class="prog-track"><div class="prog-fill" style="width:${subs[i] === null ? 0 : subs[i]}%;background:${subs[i] === null ? 'var(--border)' : gcol(subs[i])}"></div></div>
           </div>`).join('')}
       </div>
     </div>
@@ -761,11 +999,12 @@ function pgParentDash(el){
         <div class="card-title">Quarterly Grades – Mathematics</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
           ${STATE.quarters.map((q,i)=>{
-            const sc=g.math?g.math[i]:0;
-            return `<div style="padding:14px 8px;background:${sc>=90?'var(--green-l)':sc>=75?'var(--amber-l)':'var(--red-l)'};border-radius:10px;text-align:center">
+            const sc = i < 4 && g.math ? Number(g.math[i]) : null;
+            const hasScore = Number.isFinite(sc) && sc > 0;
+            return `<div style="padding:14px 8px;background:${!hasScore?'var(--bg)':sc>=90?'var(--green-l)':sc>=75?'var(--amber-l)':'var(--red-l)'};border-radius:10px;text-align:center">
               <div class="txs tmm fw7" style="text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">${q}</div>
-              <div style="font-size:24px;font-weight:800;color:${gcol(sc)};letter-spacing:-1px">${sc}</div>
-              <div class="txs" style="color:${gcol(sc)};margin-top:4px">${sc>=90?'Outstanding':sc>=75?'Satisfactory':'Below'}</div>
+              <div style="font-size:24px;font-weight:800;color:${hasScore?gcol(sc):'var(--text3)'};letter-spacing:-1px">${hasScore ? gradeDisplay(child,sc) : '—'}</div>
+              <div class="txs" style="color:${hasScore?gcol(sc):'var(--text3)'};margin-top:4px">${hasScore ? (child?.grade==='Grade 1'?gradeDisplay(child,sc):sc>=90?'Outstanding':sc>=75?'Satisfactory':'Below') : 'Not available'}</div>
             </div>`;
           }).join('')}
         </div>
@@ -809,10 +1048,7 @@ function pgAdminDash(el){
   let allOv=[];
   STATE.students.forEach(s=>{
     const g=STATE.grades[s.id];
-    if(g){
-      const ov=Math.round(STATE.subjects.reduce((a,sub)=>a+avg(g[sub]),0)/STATE.subjects.length);
-      allOv.push(ov);
-    }
+    if(g) allOv.push(overallAvg(g,STATE.subjectSets[s.grade]||STATE.subjects));
   });
   const schAvg=allOv.length?Math.round(allOv.reduce((a,b)=>a+b,0)/allOv.length):0;
   const outstanding=allOv.filter(x=>x>=90).length;
@@ -869,7 +1105,6 @@ function pgAdminDash(el){
     <div class="card-title">Quick Actions</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
       ${[
-        {icon:'📢',label:'Post Announcement',action:"openAddAnnouncementModal()"},
         {icon:'✅',label:'Teacher Approvals',action:"nav('approvals')"},
         {icon:'✉️',label:'Message a Teacher',action:"openComposeModal()"},
         {icon:'🏆',label:'Ranking',action:"nav('ranking')"},
@@ -895,14 +1130,14 @@ function pgAdminDash(el){
       </div>
       ${STATE.students.slice(0,5).map(s=>{
         const g=STATE.grades[s.id];
-        const ov=g?Math.round(STATE.subjects.reduce((a,sub)=>a+avg(g[sub]),0)/STATE.subjects.length):0;
+        const ov=g?overallAvg(g,STATE.subjectSets[s.grade]||STATE.subjects):0;
         return `<div class="flex aic gap-10" style="padding:10px 0;border-bottom:1px solid var(--border)">
           <div class="av av-32 av-green">${ini(s.name)}</div>
           <div class="f1">
             <div class="fw6 ts">${s.name}</div>
             <div class="txs tmm">${s.grade} – ${s.section}</div>
           </div>
-          <span class="badge ${gbadge(ov)}">${ov}</span>
+          <span class="badge ${gbadge(ov)}">${gradeDisplay(s,ov)}</span>
         </div>`;
       }).join('')}
     </div>
@@ -927,7 +1162,7 @@ function pgAdminDash(el){
   <div class="card">
     <div class="card-header">
       <div class="card-title" style="margin:0">Latest Announcements</div>
-      <button class="btn btn-primary btn-xs" onclick="openAddAnnouncementModal()">+ Post</button>
+      ${STATE.currentUser.role==='teacher'?'<button class="btn btn-primary btn-xs" onclick="openAddAnnouncementModal()">+ Post</button>':''}
     </div>
     ${STATE.announcements.slice(0,3).map(a=>`
       <div style="padding:12px 0;border-bottom:1px solid var(--border)">
@@ -998,14 +1233,14 @@ function pgStudents(el){
   const isAdmin = STATE.currentUser.role==='admin';
   const isTeacher = STATE.currentUser.role==='teacher';
   let searchVal = '';
+  const scopedStudents = isTeacher
+    ? STATE.students.filter(s=>s.section===STATE.currentUser.section&&s.grade===STATE.currentUser.grade)
+    : STATE.students;
 
   function getFiltered(){
-    const all = isTeacher
-      ? STATE.students.filter(s=>s.section===STATE.currentUser.section&&s.grade===STATE.currentUser.grade)
-      : STATE.students;
-    if(!searchVal.trim()) return all;
+    if(!searchVal.trim()) return scopedStudents;
     const q = searchVal.toLowerCase();
-    return all.filter(s=>
+    return scopedStudents.filter(s=>
       s.name.toLowerCase().includes(q)||
       s.id.toLowerCase().includes(q)||
       s.section.toLowerCase().includes(q)||
@@ -1045,8 +1280,11 @@ function pgStudents(el){
   el.innerHTML=`
   <div class="page-head">
     <div><div class="page-title">${isAdmin?'All Students':'My Students'}</div>
-    <div class="page-sub" id="students-count">${STATE.students.length} student(s)${isAdmin?' · Read-only monitor':''}</div></div>
+    <div class="page-sub" id="students-count">${getFiltered().length} student(s)</div></div>
     ${isTeacher?`<div class="page-actions">
+      <button class="btn btn-secondary" onclick="exportStudents()">Export</button>
+      <label class="btn btn-secondary" for="student-csv-file">Import</label>
+      <input id="student-csv-file" type="file" accept=".csv,text/csv" hidden onchange="importStudentsCsv(this)">
       <button class="btn btn-primary" onclick="openAddStudentModal()">+ Add Student</button>
     </div>`:''}
   </div>
@@ -1055,7 +1293,6 @@ function pgStudents(el){
       <input class="tbl-search" id="student-search"
         placeholder="🔍 Search students..."
         oninput="handleStudentSearch(this.value)">
-      ${isTeacher?`<button class="btn btn-secondary btn-sm" onclick="exportStudents()">Export</button>`:''}
     </div>
     <table>
       <thead><tr>
@@ -1185,6 +1422,101 @@ function saveStudent(){
   nav('students');
 }
 
+function csvEscape(value){
+  const text=String(value??'');
+  return /[",\r\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+}
+
+function downloadCsv(filename, rows){
+  const csv='\uFEFF'+rows.map(row=>row.map(csvEscape).join(',')).join('\r\n');
+  if(window.TrackEdDownload){
+    const dataUri=`data:text/csv;charset=utf-8;base64,${btoa(unescape(encodeURIComponent(csv)))}`;
+    window.TrackEdDownload.postMessage(JSON.stringify({filename,dataUri}));
+    return;
+  }
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');
+  link.href=url; link.download=filename; link.style.display='none';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`${filename} downloaded!`);
+}
+
+function parseCsv(text){
+  const rows=[]; let row=[]; let value=''; let quoted=false;
+  for(let i=0;i<text.length;i++){
+    const char=text[i];
+    if(quoted){
+      if(char==='"'&&text[i+1]==='"'){value+='"';i++;}
+      else if(char==='"') quoted=false;
+      else value+=char;
+    }else if(char==='"'&&value==='') quoted=true;
+    else if(char===','){row.push(value);value='';}
+    else if(char==='\n'||char==='\r'){
+      if(char==='\r'&&text[i+1]==='\n') i++;
+      row.push(value);value='';
+      if(row.some(cell=>cell.trim())) rows.push(row);
+      row=[];
+    }else value+=char;
+  }
+  row.push(value);
+  if(row.some(cell=>cell.trim())) rows.push(row);
+  return rows;
+}
+
+async function importStudentsCsv(input){
+  const file=input.files?.[0];
+  input.value='';
+  if(!file) return;
+  try{
+    const rows=parseCsv((await file.text()).replace(/^\uFEFF/,''));
+    if(rows.length<2) throw new Error('The spreadsheet has no student rows.');
+    const headers=rows[0].map(header=>header.trim().toLowerCase());
+    const column=name=>headers.indexOf(name.toLowerCase());
+    const required=['Name','Gender','Parent/Guardian Name','Contact Number'].map(column);
+    if(required.some(index=>index<0)) throw new Error('Use an exported spreadsheet and keep its column headers.');
+    const studentsToImport=[];
+    for(const [rowIndex,cells] of rows.slice(1).entries()){
+      const value=name=>{const index=column(name);return index<0?'':(cells[index]||'').trim();};
+      const name=value('Name'), parent=value('Parent/Guardian Name'), contact=value('Contact Number');
+      if(!name||!parent||!contact) throw new Error(`Row ${rowIndex+2}: name, parent, and contact are required.`);
+      const student={
+        name, lrn:value('LRN'), grade:STATE.currentUser.grade, section:STATE.currentUser.section,
+        gender:value('Gender').toUpperCase(), status:value('Status')||'active',
+        parent, parentEmail:value('Parent Email'), contact,
+      };
+      if(!['M','F'].includes(student.gender)) throw new Error(`Row ${rowIndex+2}: Gender must be M or F.`);
+      if(student.lrn&&!/^\d{12}$/.test(student.lrn)) throw new Error(`Row ${rowIndex+2}: LRN must contain 12 digits.`);
+      studentsToImport.push(student);
+    }
+    let imported=0;
+    const isApiUser=typeof api!=='undefined'&&Boolean(api.getToken());
+    try{
+      for(const student of studentsToImport){
+        if(isApiUser){
+          const result=await api.addStudent(student);
+          student.id=result.id; student.enrolled=result.enrolled;
+        }else{
+          student.id='S'+String(STATE.nextStudentId++).padStart(3,'0');
+          student.enrolled=new Date().toISOString().split('T')[0];
+        }
+        STATE.students.push(student);
+        STATE.grades[student.id]=Object.fromEntries((STATE.subjectSets[student.grade]||STATE.subjectSets['Grade 1']).map(subject=>[subject,[0,0,0,0]]));
+        STATE.attendance[student.id]={present:0,absent:0,half_day:0,tardy:0,late:0,total:0};
+        imported++;
+      }
+    }catch(error){
+      toast(`${imported} imported; stopped at the next row: ${error.message||'API request failed.'}`,'error');
+      if(imported) nav('students');
+      return;
+    }
+    toast(`${imported} student(s) imported.`);
+    nav('students');
+  }catch(error){
+    toast(error.message||'Could not import this spreadsheet.','error');
+  }
+}
+
 function openEditStudentModal(id){
   const s = STATE.students.find(x=>x.id===id);
   if(!s) return;
@@ -1230,7 +1562,7 @@ function viewStudentModal(id){
   const s = STATE.students.find(x=>x.id===id);
   const g = STATE.grades[id]||{};
   const att = STATE.attendance[id]||{present:0,absent:0,late:0,total:45};
-  const ov = STATE.subjects.length?Math.round(STATE.subjects.reduce((a,sub)=>a+avg(g[sub]||[]),0)/STATE.subjects.length):0;
+  const ov = overallAvg(g,STATE.subjectSets[s.grade]||STATE.subjects);
   const honors = getHonors(ov);
   openModal(`
   <div class="modal-header"><div class="modal-title">Student Profile</div><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -1251,11 +1583,10 @@ function viewStudentModal(id){
       <div style="padding:12px;background:var(--amber-l);border-radius:9px"><div style="font-size:22px;font-weight:800;color:var(--amber)">${att.late}</div><div class="txs tm">Late</div></div>
     </div>
     <div class="fw7 ts mb-8">Academic Performance</div>
-    ${STATE.subjects.map(sub=>{const sc=avg(g[sub]||[]);return `<div class="flex aic jb" style="padding:8px 0;border-bottom:1px solid var(--border)"><span class="ts">${STATE.subjectLabels[sub]}</span><span class="badge ${gbadge(sc)}">${sc}</span></div>`;}).join('')}
-    <div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:9px;text-align:center"><div class="txs tmm">Overall Average</div><div style="font-size:28px;font-weight:800;color:${gcol(ov)}">${ov}</div><div class="ts" style="color:${gcol(ov)}">${glabel(ov)}</div></div>
-    <div class="flex gap-8 mt-12"><button class="btn btn-secondary btn-sm f1" onclick="closeModal();nav('reportcard');window._rcStudentId='${id}';if(typeof renderRC==='function')renderRC();">📄 View Report Card</button></div>
+    ${(STATE.subjectSets[s.grade]||STATE.subjects).map(sub=>{const sc=avg(g[sub]||[]);return `<div class="flex aic jb" style="padding:8px 0;border-bottom:1px solid var(--border)"><span class="ts">${STATE.subjectLabels[sub]}</span><span class="badge ${sc?gbadge(sc):'bg-gray'}">${gradeDisplay(s,sc)}</span></div>`;}).join('')}
+    <div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:9px;text-align:center"><div class="txs tmm">Overall Average</div><div style="font-size:28px;font-weight:800;color:${gradeColor(s,ov)}">${gradeDisplay(s,ov)}</div><div class="ts" style="color:${gradeColor(s,ov)}">${s.grade==='Grade 1'?gradeDisplay(s,ov):glabel(ov)}</div></div>
   </div>
-  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button><button class="btn btn-primary" onclick="closeModal();openEditStudentModal('${id}')">Edit Student</button></div>`);
+  <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
 }
 
 function deleteStudent(id, name){
@@ -1265,12 +1596,53 @@ function deleteStudent(id, name){
   });
 }
 
+function downloadPdf(filename, title, headers, rows){
+  const JsPDF = window.jspdf?.jsPDF;
+  if(!JsPDF){ toast('PDF service is unavailable. Connect to the internet and try again.','error'); return; }
+  const doc = new JsPDF({orientation:'landscape'});
+  const margin = 12;
+  let y = 16;
+  doc.setFontSize(16); doc.text(title, margin, y); y += 10;
+  doc.setFontSize(8);
+  const width = (doc.internal.pageSize.getWidth()-margin*2)/headers.length;
+  const writeRow = (values, bold=false) => {
+    if(y > 195){ doc.addPage(); y=16; }
+    doc.setFont(undefined,bold?'bold':'normal');
+    values.forEach((value,index)=>doc.text(String(value ?? '').slice(0,28), margin+index*width, y));
+    y += 6;
+  };
+  writeRow(headers,true); doc.line(margin,y-4,doc.internal.pageSize.getWidth()-margin,y-4);
+  rows.forEach(row=>writeRow(row));
+  if (window.TrackEdDownload) {
+    const dataUri = doc.output('datauristring');
+    window.TrackEdDownload.postMessage(JSON.stringify({filename, dataUri}));
+    return;
+  }
+  const url=URL.createObjectURL(doc.output('blob'));
+  const link=document.createElement('a');
+  link.href=url; link.download=filename; link.style.display='none';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`${title} PDF downloaded!`);
+}
+
+window.handleNativeDownloadResult=function(success,filename,uri,notificationsEnabled){
+  if(success){ downloadToast(filename,uri,notificationsEnabled); return; }
+  toast(`${filename} could not be saved. Check device storage and try again.`,'error');
+};
+
+window.handleNativeDownloadOpenResult=function(success,filename){
+  if(success){ toast(`Opening ${filename}.`,'info'); return; }
+  toast(`${filename} is saved in Downloads, but no app could open it.`,'error');
+};
+
 function exportStudents(){
-  const rows = [['ID','LRN','Name','Grade','Section','Gender','Parent','Contact','Status']];
-  STATE.students.forEach(s=>rows.push([s.id,s.lrn||'',s.name,s.grade,s.section,s.gender,s.parent,s.contact,s.status]));
-  const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='students.csv';a.click();
-  toast('Student list exported!');
+  const rows = [['Name','LRN','Gender','Parent/Guardian Name','Parent Email','Contact Number','Status']];
+  const students = STATE.currentUser.role==='teacher'
+    ? STATE.students.filter(s=>s.section===STATE.currentUser.section&&s.grade===STATE.currentUser.grade)
+    : STATE.students;
+  students.forEach(s=>rows.push([s.name,s.lrn||'',s.gender,s.parent,s.parentEmail,s.contact,s.status]));
+  downloadCsv('students.csv',rows);
 }
 /* ════════════════════════════════════════
    TEACHERS PAGE (Admin)
@@ -1315,7 +1687,7 @@ function pgTeachers(el){
   el.innerHTML=`
   <div class="page-head">
     <div><div class="page-title">Teachers</div>
-    <div class="page-sub" id="teachers-count">${STATE.teachers.length} teacher(s) · Read-only monitor</div></div>
+    <div class="page-sub" id="teachers-count">${STATE.teachers.length} teacher(s)</div></div>
   </div>
   <div class="tbl-wrap">
     <div class="tbl-toolbar">
@@ -1353,6 +1725,7 @@ function openAddTeacherModal(){
       <div class="fg"><label>Title</label><select id="tf-ti"><option>Ms.</option><option>Mrs.</option><option>Mr.</option><option>Dr.</option></select></div>
       <div class="fg"><label>Email*</label><input id="tf-em" type="email" placeholder="teacher@school.edu"></div>
       <div class="fg"><label>Phone</label><input id="tf-ph" placeholder="09XXXXXXXXX"></div>
+      <div class="fg"><label>Login Password*</label><div class="pass-wrap"><input id="tf-pw" type="password" placeholder="Create a password"><button type="button" class="pass-toggle" onclick="toggleFieldPassword('tf-pw', this)" aria-label="Show password"><svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zm10 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg></button></div></div>
       <div class="fg"><label>Grade Assigned*</label><select id="tf-gr">${['Grade 1','Grade 2','Grade 3'].map(g=>`<option>${g}</option>`).join('')}</select></div>
       <div class="fg" style="grid-column:span 2"><label>Section*</label><input id="tf-sec" placeholder="e.g. Mabini"></div>
     </div>
@@ -1418,14 +1791,14 @@ function pgClasses(el){
   function render(){
     el.innerHTML=`
     <div class="page-head">
-      <div><div class="page-title">Classes</div><div class="page-sub">Read-only monitor — sections and teacher assignments</div></div>
+      <div><div class="page-title">Classes</div><div class="page-sub">Sections and teacher assignments</div></div>
     </div>
     <div class="g2">
       ${STATE.classes.map(c=>{
         const t=STATE.teachers.find(x=>x.id===c.teacherId);
         const sts=STATE.students.filter(s=>s.grade===c.grade&&s.section===c.section&&s.status==='active');
-        let sc=[];sts.forEach(s=>{const g=STATE.grades[s.id];if(g) STATE.subjects.forEach(sub=>sc.push(avg(g[sub])));});
-        const ca=sc.length?Math.round(sc.reduce((a,b)=>a+b,0)/sc.length):0;
+        let sc=[];sts.forEach(s=>{const g=STATE.grades[s.id];if(g) (STATE.subjectSets[s.grade]||STATE.subjects).forEach(sub=>{const score=safeAverage(g[sub]);if(score!==null) sc.push(score);});});
+        const ca=averageScores(sc)||0;
         return `<div class="card">
           <div class="flex aic gap-14 mb-16">
             <div style="width:50px;height:50px;background:var(--blue-l);border-radius:12px;display:flex;align-items:center;justify-content:center">${svgIco.school.replace('fill="currentColor"','fill="var(--blue)"').replace('width="16" height="16"','width="24" height="24"')}</div>
@@ -1433,7 +1806,7 @@ function pgClasses(el){
           </div>
           <div class="g3 mb-14" style="text-align:center">
             <div style="padding:10px;background:var(--bg);border-radius:9px"><div style="font-size:20px;font-weight:800;color:var(--blue)">${sts.length}</div><div class="txs tm">Students</div></div>
-            <div style="padding:10px;background:var(--bg);border-radius:9px"><div style="font-size:20px;font-weight:800;color:${gcol(ca)}">${ca||'–'}</div><div class="txs tm">Avg Grade</div></div>
+            <div style="padding:10px;background:var(--bg);border-radius:9px"><div style="font-size:20px;font-weight:800;color:${ca?gradeColor({grade:c.grade},ca):'var(--text3)'}">${ca?gradeDisplay({grade:c.grade},ca):'–'}</div><div class="txs tm">Avg Grade</div></div>
             <div style="padding:10px;background:var(--bg);border-radius:9px"><div style="font-size:16px;font-weight:800;color:var(--green)">${c.year}</div><div class="txs tm">School Year</div></div>
           </div>
           <div class="divider"></div>
@@ -1524,6 +1897,10 @@ function pgGrades(el){
     );
   }
 
+  function subjectsForStudent(student){
+    return STATE.subjectSets[student.grade] || STATE.subjects;
+  }
+
   function render(){
     const students = getStudents();
     el.innerHTML=`
@@ -1537,7 +1914,7 @@ function pgGrades(el){
     ${isParent
       ? (STATE.currentUser.childId || 'View your child grades')
       : isAdmin
-        ? 'Enter and monitor student grades'
+        ? 'View and monitor student grades'
         : 'Encode and manage student grades'}
   </div>
 </div>
@@ -1546,18 +1923,14 @@ function pgGrades(el){
             <button class="btn btn-secondary" onclick="resetGrades()">Reset</button>
             <button class="btn btn-primary" onclick="saveGrades()">💾 Save Grades</button>
            </div>`
-        : isAdmin
-          ? `<div class="page-actions">
-     <button class="btn btn-secondary" onclick="resetGrades()">Reset</button>
-     <button class="btn btn-primary" onclick="saveGrades()">💾 Save Grades</button>
-   </div>`
-          : ''}
+        : ''}
     </div>
     <div class="tab-bar">
       ${STATE.quarters.map((q,i)=>
         `<button class="tab-btn ${i===activeQ?'active':''}" data-qi="${i}">${q}</button>`
       ).join('')}
     </div>
+    ${isParent && students.some(student=>student.grade==='Grade 1')?`<div class="card mb-16"><details><summary>Grade 1 Performance Descriptors</summary><div class="g2 mt-12">${grade1Scale.map(level=>`<div class="flex aifs gap-10" style="padding:8px 0"><span class="badge bg-blue">${level.letter}</span><div><div class="fw6 ts">${level.name}</div><div class="txs tm mt-4">${level.description}</div></div></div>`).join('')}</div></details></div>`:''}
     <div class="tbl-wrap">
       <table>
         <thead>
@@ -1574,13 +1947,16 @@ function pgGrades(el){
           ${students.map(s=>{
             const g = STATE.grades[s.id]||{};
             const showFinal = activeQ===4;
+            const applicableSubjects = new Set(subjectsForStudent(s));
             const scores = showFinal
-              ? STATE.quarters.slice(0,4).map((_,qi)=>{
-                  const values = STATE.subjects.map(sub=>g[sub]?g[sub][qi]:0);
-                  return values.length ? Math.round(values.reduce((a,b)=>a+b,0)/values.length) : 0;
-                })
-              : STATE.subjects.map(sub=>g[sub]?g[sub][activeQ]:0);
-            const ov = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+              ? STATE.quarters.slice(0,4).map((_,qi)=>
+                  averageScores(subjectsForStudent(s).map(sub=>g[sub]?.[qi]))
+                )
+              : STATE.subjects.map(sub=>applicableSubjects.has(sub)
+                  ? normalizeGradeValue(g[sub]?.[activeQ])
+                  : null
+                );
+            const ov = averageScores(scores) ?? 0;
             const honors = showFinal ? getHonors(ov) : null;
             return `<tr>
               <td>
@@ -1594,22 +1970,21 @@ function pgGrades(el){
               </td>
               ${scores.map((sc,i)=>{
                 if(showFinal){
-                  return `<td><span class="badge ${gbadge(sc)}">${sc}</span></td>`;
+                  return `<td><span class="badge ${sc===null?'bg-gray':gbadge(sc)}">${gradeDisplay(s,sc)}</span></td>`;
                 }
                 const sub = STATE.subjects[i];
                 const key = `${s.id}-${sub}-${activeQ}`;
-                if(isParent || isAdmin){
-                  return `<td><span class="badge ${gbadge(sc)}">${sc}</span></td>`;
+                if(sc===null || isParent || isAdmin){
+                  return `<td><span class="badge ${sc===null||sc===0?'bg-gray':gbadge(sc)}">${gradeDisplay(s,sc)}</span></td>`;
                 }
                 return `<td>
-                  <input class="grade-cell ${changed[key]?'changed':''}"
-                    type="number" min="0" max="100" value="${sc}"
-                    data-sid="${s.id}" data-sub="${sub}" data-qi="${activeQ}"
-                    onchange="onGradeChange(this,'${key}')">
+                  ${s.grade==='Grade 1'
+                    ? `<select class="grade-cell ${changed[key]?'changed':''}" data-sid="${s.id}" data-sub="${sub}" data-qi="${activeQ}" onchange="onGradeChange(this,'${key}')"><option value="0" ${gradeDisplay(s,sc)==='—'?'selected':''}>—</option>${grade1Scale.map(level=>`<option value="${level.value}" ${gradeDisplay(s,sc)===level.letter?'selected':''}${isParent ? ` title="${level.name}: ${level.description}"` : ''}>${level.letter}</option>`).join('')}</select>`
+                    : `<input class="grade-cell ${changed[key]?'changed':''}" type="number" min="0" max="100" value="${sc}" data-sid="${s.id}" data-sub="${sub}" data-qi="${activeQ}" onchange="onGradeChange(this,'${key}')">`}
                 </td>`;
               }).join('')}
-              <td><strong style="color:${gcol(ov)}">${ov}</strong></td>
-              <td><span class="badge ${gbadge(ov)}">${glabel(ov)}</span>${honors?`<div class="txs mt-4" style="color:var(--gold)">${honors.icon} ${honors.label}</div>`:''}</td>
+              <td><strong style="color:${gradeColor(s,ov)}">${gradeDisplay(s,ov)}</strong></td>
+              <td><span class="badge ${ov?gbadge(ov):'bg-gray'}">${s.grade==='Grade 1'?gradeDisplay(s,ov):glabel(ov)}</span>${isParent && s.grade==='Grade 1' && gradeDisplay(s,ov)!=='—'?`<div class="txs mt-4">${grade1Descriptor(gradeDisplay(s,ov))?.name||''}</div>`:''}${honors?`<div class="txs mt-4" style="color:var(--gold)">${honors.icon} ${honors.label}</div>`:''}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1622,6 +1997,7 @@ function pgGrades(el){
   }
 
   window.onGradeChange=(inp,key)=>{
+    if(!isTeacher){ toast('Only teachers can edit grades.','error'); return; }
     let v=parseInt(inp.value)||0;
     if(v<0)v=0; if(v>100)v=100;
     inp.value=v;
@@ -1642,18 +2018,18 @@ function pgGrades(el){
   };
 
   window.saveGrades=()=>{
-    if(!isTeacher && !isAdmin){ toast('Only teachers can save grades.','error'); return; }
+    if(!isTeacher){ toast('Only teachers can save grades.','error'); return; }
     changed={};
     toast('Grades saved successfully!');
     render();
   };
 
   window.resetGrades=()=>{
-    if(!isTeacher && !isAdmin){ toast('Only teachers can reset grades.','error'); return; }
+    if(!isTeacher){ toast('Only teachers can reset grades.','error'); return; }
     const students=getStudents();
     students.forEach(s=>{
       if(!STATE.grades[s.id]) STATE.grades[s.id]={};
-      STATE.subjects.forEach(sub=>{
+      subjectsForStudent(s).forEach(sub=>{
         if(!STATE.grades[s.id][sub]) STATE.grades[s.id][sub]=[0,0,0,0];
         if(activeQ===4){
           STATE.grades[s.id][sub]=[0,0,0,0];
@@ -1677,7 +2053,7 @@ function pgAttendance(el){
   const isParent = role === 'parent';
   const isAdmin = role === 'admin';
   const isTeacher = role === 'teacher';
-  const calTypes=['att-h','att-h','att-p','att-p','att-p','att-a','att-p','att-l','att-p','att-p','att-p','att-h','att-h','att-p','att-p','att-p','att-p','att-a','att-p','att-p','att-p','att-h','att-h','att-p','att-p','att-p','att-l','att-p','att-h','att-h','att-p'];
+  const calTypes=['att-h','att-h','att-p','att-p','att-p','att-a','att-p','att-p','att-p','att-p','att-p','att-h','att-h','att-p','att-p','att-p','att-p','att-a','att-p','att-p','att-p','att-h','att-h','att-p','att-p','att-p','att-p','att-p','att-h','att-h','att-p'];
   const todayDate = new Date().toISOString().split('T')[0];
   let selDate = todayDate;
   let todayRecords = {};
@@ -1690,6 +2066,12 @@ function pgAttendance(el){
       s.grade===STATE.currentUser.grade &&
       s.status==='active'
     );
+  }
+
+  function selectedStatus(studentId){
+    const recorded=STATE.attendanceDays?.[studentId]?.[selDate];
+    const status=todayRecords[studentId]||recorded;
+    return ['Absent','Late','Half-day'].includes(status)?status:'Present';
   }
 
   function buildRealCalendar(sid){
@@ -1706,7 +2088,7 @@ function pgAttendance(el){
     for(let d=1; d<=daysInMonth; d++){
       const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const st = days[iso];
-      const cls = st==='Absent'?'att-a':st==='Late'?'att-l':st==='Present'?'att-p':'att-h';
+      const cls = st==='Absent'?'att-a':st==='Late'?'att-l':st==='Half-day'?'att-half':st?'att-p':'att-h';
       cells += `<div class="att-cal-cell ${cls}" title="${iso}">${d}</div>`;
     }
     const monthLabel = firstOfMonth.toLocaleDateString('en-PH',{month:'long',year:'numeric'});
@@ -1744,12 +2126,8 @@ function pgAttendance(el){
             style="padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;outline:none"
             onchange="setAttendanceDate(this.value)">
         </div>
-        <div class="flex gap-8">
-          <span class="badge bg-green">P = Present</span>
-          <span class="badge bg-red">A = Absent</span>
-          <span class="badge bg-amber">L = Late</span>
-        </div>
       </div>
+      <div class="txs tm mt-8" id="att-holiday-note">Checking Philippine holidays…</div>
     </div>` : ''}
 
     <div class="${isParent?'g2':''}">
@@ -1761,26 +2139,28 @@ function pgAttendance(el){
               <th>Present</th>
               <th>Absent</th>
               <th>Late</th>
+              <th>Half-day</th>
               <th>Rate</th>
-              ${isTeacher ? `<th>Today's Status</th>` : ''}
               ${isAdmin ? `<th>Status</th>` : ''}
             </tr>
           </thead>
           <tbody>
             ${students.map(s=>{
-              const a = STATE.attendance[s.id]||{present:0,absent:0,late:0,total:45};
-              const rate = a.total ? Math.round(a.present/a.total*100) : 0;
-              const cur = todayRecords[s.id]||'Present';
+              const a = STATE.attendance[s.id]||{present:0,absent:0,half_day:0,tardy:0,late:0,total:45};
+              const rate = a.total ? Math.round((a.present+(a.half_day||0)*0.5)/a.total*100) : 0;
+              const cur=selectedStatus(s.id);
               return `<tr>
                 <td>
-                  <div class="flex aic gap-8">
+                  <div class="flex aic gap-8" style="flex-wrap:wrap">
                     <div class="av av-32 av-green">${ini(s.name)}</div>
                     <div class="fw6">${s.name}</div>
+                    ${isTeacher ? `<div class="flex gap-4">${[['Present','P'],['Absent','A'],['Late','L'],['Half-day','1/2']].map(([status,label])=>`<button type="button" class="btn btn-xs ${cur===status?'btn-primary':'btn-secondary'}" title="${status}" aria-label="${status} for ${s.name}" aria-pressed="${cur===status}" data-sid="${s.id}" data-status="${status}" onclick="setAttendanceStatus(this)">${label}</button>`).join('')}</div>` : ''}
                   </div>
                 </td>
                 <td><span class="badge bg-green">${a.present}</span></td>
                 <td><span class="badge bg-red">${a.absent}</span></td>
-                <td><span class="badge bg-amber">${a.late}</span></td>
+                <td><span class="badge bg-amber">${a.late||0}</span></td>
+                <td><span class="badge bg-gray">${a.half_day||0}</span></td>
                 <td>
                   <div class="flex aic gap-8">
                     <div style="flex:1;height:5px;background:var(--surface2);border-radius:3px">
@@ -1789,15 +2169,6 @@ function pgAttendance(el){
                     <span class="txs fw6" style="color:${rate>=90?'var(--green)':rate>=75?'var(--amber)':'var(--red)'};min-width:30px">${rate}%</span>
                   </div>
                 </td>
-                ${isTeacher ? `
-                <td>
-                  <select style="padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;outline:none"
-                    data-sid="${s.id}" onchange="onAttendanceChange(this)">
-                    <option ${cur==='Present'?'selected':''}>Present</option>
-                    <option ${cur==='Absent'?'selected':''}>Absent</option>
-                    <option ${cur==='Late'?'selected':''}>Late</option>
-                  </select>
-                </td>` : ''}
                 ${isAdmin ? `
                 <td><span class="badge bg-gray">${cur}</span></td>
                 ` : ''}
@@ -1819,7 +2190,6 @@ function pgAttendance(el){
         <div class="att-legend">
           <div class="att-leg-item"><div class="att-leg-dot" style="background:var(--blue-l)"></div>Present</div>
           <div class="att-leg-item"><div class="att-leg-dot" style="background:#FDECEC"></div>Absent</div>
-          <div class="att-leg-item"><div class="att-leg-dot" style="background:var(--amber-l)"></div>Late</div>
           <div class="att-leg-item"><div class="att-leg-dot" style="background:var(--surface2)"></div>No class</div>
         </div>
       </div>`; })() : ''}
@@ -1830,7 +2200,7 @@ function pgAttendance(el){
       <div class="card-title">Attendance Rate Summary</div>
       ${students.map(s=>{
         const a = STATE.attendance[s.id]||{present:0,absent:0,late:0,total:45};
-        const rate = a.total ? Math.round(a.present/a.total*100) : 0;
+        const rate = a.total ? Math.round((a.present+(a.half_day||0)*0.5)/a.total*100) : 0;
         return `<div class="prog-wrap">
           <div class="prog-top">
             <span class="ts fw6">${s.name}</span>
@@ -1843,31 +2213,81 @@ function pgAttendance(el){
       }).join('')}
     </div>` : ''}`;
 
-    window.saveAttendance=()=>{
+    loadPhilippineHoliday(selDate).then(holiday=>{
+      const note=document.getElementById('att-holiday-note');
+      if(note) note.textContent=holiday?`Public holiday: ${holiday.localName||holiday.name}`:'No public holiday listed for this date.';
+    }).catch(()=>{
+      const note=document.getElementById('att-holiday-note');
+      if(note) note.textContent='Holiday information is unavailable right now.';
+    });
+
+    window.saveAttendance=async()=>{
       if(!isTeacher){ toast('Only teachers can save attendance.','error'); return; }
       const students2 = getStudents();
+      const records = {};
+      students2.forEach(s=>{ records[s.id] = selectedStatus(s.id); });
+      const isApiUser=typeof api!=='undefined'&&Boolean(api.getToken());
+      if(isApiUser){
+        try {
+          await api.markAttendance(selDate, records);
+          const refreshed=await api.getAttendance();
+          STATE.attendance=Object.fromEntries(Object.entries(refreshed).map(([studentId,record])=>{
+            const {days,...totals}=record; return [studentId,totals];
+          }));
+          STATE.attendanceDays=Object.fromEntries(Object.entries(refreshed).map(([studentId,record])=>[studentId,record.days||{}]));
+        } catch(e) {
+          toast(e.message||'Attendance could not be saved.','error');
+          return;
+        }
+      }
       if(!STATE.attendanceDays) STATE.attendanceDays = {};
-      students2.forEach(s=>{
-        const val = todayRecords[s.id]||'Present';
-        if(!STATE.attendance[s.id]) STATE.attendance[s.id]={present:0,absent:0,late:0,total:0};
-        const a = STATE.attendance[s.id];
-        if(val==='Absent'){ a.absent++; }
-        else if(val==='Late'){ a.late++; a.present++; }
-        else { a.present++; }
-        a.total++;
-        if(!STATE.attendanceDays[s.id]) STATE.attendanceDays[s.id] = {};
-        STATE.attendanceDays[s.id][selDate] = val;
+      if(!isApiUser) students2.forEach(s=>{
+        const val=selectedStatus(s.id);
+        if(!STATE.attendance[s.id]) STATE.attendance[s.id]={present:0,absent:0,half_day:0,tardy:0,late:0,total:0};
+        if(!STATE.attendanceDays[s.id]) STATE.attendanceDays[s.id]={};
+        const summary=STATE.attendance[s.id];
+        ['present','absent','half_day','tardy','late','total'].forEach(key=>{summary[key]??=0;});
+        const old=STATE.attendanceDays[s.id][selDate];
+        const adjust=(status,amount)=>{
+          if(status==='Absent') summary.absent+=amount;
+          else if(status==='Half-day') summary.half_day+=amount;
+          else if(status==='Tardy'){summary.tardy+=amount;summary.present+=amount;}
+          else if(status==='Late'){summary.late+=amount;summary.present+=amount;}
+          else if(status==='Present') summary.present+=amount;
+        };
+        if(old) adjust(old,-1); else STATE.attendance[s.id].total++;
+        adjust(val,1);
+        STATE.attendanceDays[s.id][selDate]=val;
       });
       todayRecords={};
       toast('Attendance saved for '+selDate+'!');
       render();
     };
 
-    window.onAttendanceChange=(sel)=>{ todayRecords[sel.dataset.sid]=sel.value; };
-    window.setAttendanceDate=(value)=>{ selDate=value; };
+    window.setAttendanceStatus=(button)=>{
+      todayRecords[button.dataset.sid]=button.dataset.status;
+      el.querySelectorAll(`[data-sid="${button.dataset.sid}"][data-status]`).forEach(option=>{
+        const active=option.dataset.status===button.dataset.status;
+        option.classList.toggle('btn-primary',active);
+        option.classList.toggle('btn-secondary',!active);
+        option.setAttribute('aria-pressed',String(active));
+      });
+    };
+    window.setAttendanceDate=(value)=>{ selDate=value; todayRecords={}; render(); };
   }
 
   render();
+}
+
+const philippineHolidayCache=new Map();
+async function loadPhilippineHoliday(isoDate){
+  const year=isoDate.slice(0,4);
+  if(!philippineHolidayCache.has(year)){
+    const response=await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
+    if(!response.ok) throw new Error('Holiday API request failed.');
+    philippineHolidayCache.set(year,await response.json());
+  }
+  return philippineHolidayCache.get(year).find(item=>item.date===isoDate)||null;
 }
 /* ════════════════════════════════════════
    MESSAGES PAGE — fully functional inbox
@@ -1882,11 +2302,12 @@ function pgMessages(el){
 
   function getThreads(){
     const all = STATE.messages.filter(m =>
-      !m.isAlert && (
-      m.toRole === u.role ||
-      m.toRole === 'all' ||
-      m.fromId === u.id ||
-      u.role === 'admin')
+      !m.isAlert &&
+      !(STATE.archivedMessages||[]).includes('message-'+m.id) &&
+      (m.toRole === u.role ||
+       m.toRole === 'all' ||
+       m.fromId === u.id ||
+       u.role === 'admin')
     );
 
     const threadMap = {};
@@ -1963,7 +2384,7 @@ function pgMessages(el){
         display:flex;align-items:center;gap:12px;background:${a.read?'white':'var(--red-l)'};border-left:3px solid var(--red)">
         <div style="width:50px;height:50px;border-radius:50%;background:var(--red-l);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">⚠️</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:${a.read?600:700};color:var(--text)">🔔 SmartGrade Alert</div>
+          <div style="font-size:14px;font-weight:${a.read?600:700};color:var(--text)">🔔 TrackEd Alert</div>
           <div style="font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.subject}</div>
         </div>
       </div>`).join('');
@@ -1989,7 +2410,7 @@ function pgMessages(el){
           const isActive = t.partnerId === activePartnerId;
 
           return `
-            <div onclick="openThread('${t.partnerId}')"
+            <div class="msg-thread-row" onclick="openThread('${t.partnerId}')"
               style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;
               display:flex;align-items:center;gap:12px;
               background:${isActive ? 'var(--green-l)' : 'white'};transition:background .1s"
@@ -2030,7 +2451,6 @@ function pgMessages(el){
                 </div>
               </div>
 
-              <div style="color:var(--text3);flex-shrink:0;font-size:18px">›</div>
             </div>`;
         }).join('');
   }
@@ -2043,7 +2463,7 @@ function pgMessages(el){
     renderThreadRows();
     openModal(`
       <div class="modal-header" style="background:var(--red);padding:16px 20px">
-        <div style="color:#fff;font-weight:700">🔔 SmartGrade Alert</div>
+        <div style="color:#fff;font-weight:700">🔔 TrackEd Alert</div>
         <button onclick="closeModal()">✕</button>
       </div>
       <div class="modal-body">
@@ -2052,7 +2472,7 @@ function pgMessages(el){
       </div>
       <div class="modal-footer">
         ${showArchived
-          ? `<button class="btn btn-secondary" onclick="unarchiveAlert(${a.id});closeModal()">↩ Unarchive</button>`
+          ? `<button class="btn btn-secondary" onclick="unarchiveAlert(${a.id});closeModal()">Unarchive</button>`
           : `<button class="btn btn-secondary" onclick="archiveAlert(${a.id});closeModal()">📁 Archive</button>`}
         <button class="btn btn-primary" onclick="closeModal()">Close</button>
       </div>`);
@@ -2071,10 +2491,14 @@ function pgMessages(el){
 
   function openThread(partnerId){
     activePartnerId = partnerId;
+    el.classList.add('message-conversation-open');
 
     const threads = getThreads();
     const thread = threads.find(t => t.partnerId === partnerId);
-    if (!thread) return;
+    if (!thread) {
+      closeMessageDetail();
+      return;
+    }
 
     thread.messages.forEach(m => {
       if (!m.read && m.toId === u.id) m.read = true;
@@ -2093,43 +2517,49 @@ function pgMessages(el){
           align-items:${isMine ? 'flex-end' : 'flex-start'};
           margin-bottom:12px;padding:0 8px">
 
-          <div style="display:flex;align-items:flex-end;gap:8px;max-width:85%;
-            flex-direction:${isMine ? 'row-reverse' : 'row'}">
-
-            <div style="padding:10px 14px;
-              border-radius:${isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};
-              background:${isMine ? 'var(--green)' : 'white'};
-              color:${isMine ? '#fff' : 'var(--text)'};
-              font-size:13.5px;line-height:1.5;word-break:break-word;
-              box-shadow:0 1px 3px rgba(0,0,0,.1);max-width:100%">
+          <div class="msg-bubble-wrap" style="${isMine ? 'flex-direction:row-reverse' : ''}">
+            ${!isMine ? `<div class="msg-bubble-avatar">${ini(m.fromName || thread.partnerName)}</div>` : ''}
+            <div>
+              <div class="msg-bubble ${isMine ? 'outgoing' : 'incoming'}">
               ${m.body.replace(/\n/g, '<br>')}
+              </div>
+              <div class="msg-bubble-meta" style="text-align:${isMine ? 'right' : 'left'}">${m.time || ''}</div>
             </div>
 
           </div>
         </div>`;
     }).join('');
 
-    openModal(`
-      <div class="modal-header" style="background:var(--green-d);padding:16px 20px">
-        <div style="color:#fff;font-weight:700">${thread.partnerName}</div>
-        <div style="display:flex;gap:8px">
+    const detail = document.getElementById('message-detail');
+    if (!detail) return;
+    detail.closest('.msg-layout')?.classList.add('message-open');
+    detail.innerHTML = `
+      <div class="msg-panel-head">
+        <button class="btn btn-secondary btn-xs msg-back-btn" onclick="closeMessageDetail()" aria-label="Back to messages" title="Back to messages">Back</button>
+        <div class="msg-contact">
+          <div class="av av-40 av-blue">${ini(thread.partnerName)}</div>
+          <div>
+            <div class="msg-contact-name">${thread.partnerName}</div>
+            <div class="msg-panel-meta">${thread.messages.length} message${thread.messages.length===1?'':'s'} in this conversation</div>
+          </div>
+        </div>
+        <div class="msg-panel-actions">
           ${showArchived
-            ? `<button onclick="unarchiveThreadPartner('${partnerId}')" title="Unarchive" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px">↩ Unarchive</button>`
-            : `<button onclick="archiveThreadPartner('${partnerId}')" title="Archive" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px">📁 Archive</button>`}
-          <button onclick="deleteThreadPartner('${partnerId}')" title="Delete" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px">🗑 Delete</button>
-          <button onclick="closeModal()">✕</button>
+            ? `<button class="btn btn-secondary btn-xs" onclick="unarchiveThreadPartner('${partnerId}')" title="Unarchive conversation">Unarchive</button>`
+            : `<button class="btn btn-secondary btn-xs" onclick="archiveThreadPartner('${partnerId}')" title="Archive conversation">📁 Archive</button>`}
+          <button class="btn btn-secondary btn-xs" onclick="deleteThreadPartner('${partnerId}')" title="Delete conversation">🗑 Delete</button>
         </div>
       </div>
-
-      <div id="chat-body" style="padding:16px;overflow-y:auto;max-height:50vh;background:#f0f2f5">
+      <div id="chat-body" class="msg-panel-body msg-chat-body">
         ${chatHTML}
       </div>
-
-      <div style="padding:12px;display:flex;gap:8px;background:#fff">
-        <textarea id="reply-area" style="flex:1"></textarea>
-        <button onclick="sendReply('${partnerId}')">➤</button>
+      <div class="msg-panel-reply">
+        <label class="sr-only" for="reply-area">Reply to ${thread.partnerName}</label>
+        <textarea id="reply-area" placeholder="Write a reply..."></textarea>
+        <button class="btn btn-primary msg-send-btn" type="button" onclick="sendReply('${partnerId}')" aria-label="Send reply">Send</button>
       </div>
-    `);
+    `;
+    detail.querySelector('#reply-area').focus();
 
     window.sendReply = function(toPartnerId){
       const txt = document.getElementById('reply-area').value.trim();
@@ -2161,6 +2591,30 @@ function pgMessages(el){
     renderThreadRows();
     toast('Conversation moved back to inbox.');
   };
+
+  window.archiveMessage = function(messageId, partnerId){
+    if(!STATE.archivedMessages) STATE.archivedMessages=[];
+    if(!STATE.archivedMessages.includes('message-'+messageId)) STATE.archivedMessages.push('message-'+messageId);
+    toast('Message archived.');
+    openThread(partnerId);
+  };
+
+  window.deleteMessage = function(messageId, partnerId){
+    showConfirm('Delete Message','Permanently delete this message?',()=>{
+      STATE.messages = STATE.messages.filter(message => message.id !== messageId);
+      toast('Message deleted.');
+      openThread(partnerId);
+    });
+  };
+
+  window.closeMessageDetail = function(){
+    activePartnerId = null;
+    el.classList.remove('message-conversation-open');
+    document.querySelector('.msg-layout')?.classList.remove('message-open');
+    const detail = document.getElementById('message-detail');
+    if(detail) detail.innerHTML = '<div class="msg-empty"><div class="msg-empty-icon">✉</div><strong>Select a conversation</strong><span>Choose a message from your inbox to read and reply.</span></div>';
+    renderThreadRows();
+  };
   window.archiveThreadPartner = function(partnerId){
     if(!STATE.archivedMessages) STATE.archivedMessages=[];
     if(!STATE.archivedMessages.includes(partnerId)) STATE.archivedMessages.push(partnerId);
@@ -2181,26 +2635,42 @@ function pgMessages(el){
 
   function render(){
     const archivedCount = (STATE.archivedMessages||[]).length;
+    el.classList.toggle('message-conversation-open',Boolean(activePartnerId));
     el.innerHTML = `
-      <div class="page-head">
+      <div class="page-head msg-page-head">
         <div>
           <div class="page-title">${showArchived?'Archived Messages':'Messages'}</div>
+          <div class="page-sub">Keep conversations with your school community in one place.</div>
         </div>
         <div class="page-actions">
+          ${u.role==='parent'&&typeof api!=='undefined'&&api.getToken()?`<button class="btn btn-secondary btn-sm" onclick="connectTelegram()">${u.telegram_chat_id?'Telegram Linked':'Connect Telegram'}</button>`:''}
+          <button class="btn btn-primary btn-sm" onclick="openComposeModal()">+ New Message</button>
           <button class="btn btn-secondary btn-sm" onclick="toggleArchivedView()">
-            ${showArchived?'← Back to Inbox':`📁 Archived${archivedCount?` (${archivedCount})`:''}`}
+            ${showArchived?'Back to Inbox':`📁 Archived${archivedCount?` (${archivedCount})`:''}`}
           </button>
         </div>
       </div>
 
-      <div style="margin-bottom:12px">
-        <input id="msg-search"
-          style="width:100%;padding:11px"
-          placeholder="Search..."
-          oninput="handleMsgSearch(this.value)">
+      <div class="msg-layout">
+        <aside class="msg-list">
+          <div class="msg-list-head">
+            <span>${showArchived?'Archived':'Inbox'}</span>
+            <span class="msg-list-count" id="msg-list-count"></span>
+          </div>
+          <div class="msg-search-wrap">
+            <label class="sr-only" for="msg-search">Search messages</label>
+            <input id="msg-search" class="msg-search" placeholder="Search conversations" oninput="handleMsgSearch(this.value)">
+          </div>
+          <div id="thread-list" class="msg-list-body"></div>
+        </aside>
+        <section id="message-detail" class="msg-panel" aria-live="polite">
+          <div class="msg-empty">
+            <div class="msg-empty-icon">✉</div>
+            <strong>Select a conversation</strong>
+            <span>Choose a message from your inbox to read and reply.</span>
+          </div>
+        </section>
       </div>
-
-      <div id="thread-list"></div>
     `;
 
     window.handleMsgSearch = (val) => {
@@ -2216,6 +2686,26 @@ function pgMessages(el){
 
   render();
 }
+
+window.openTelegramLink=function(url){
+  if(window.TrackEdExternalLink) window.TrackEdExternalLink.postMessage(url);
+  else window.open(url,'_blank','noopener');
+};
+
+window.connectTelegram=async function(){
+  try{
+    const result=await api.createTelegramLink();
+    if(result.linked){
+      STATE.currentUser.telegram_chat_id='linked';
+      toast('Telegram is already connected.');
+      nav('messages');
+      return;
+    }
+    openModal(`<div class="modal-header"><div class="modal-title">Connect Telegram</div><button class="modal-close" onclick="closeModal()">✕</button></div><div class="modal-body"><p class="ts">This one-time link expires in ${result.expiresInMinutes} minutes.</p><button class="btn btn-primary" data-url="${result.linkUrl}" onclick="openTelegramLink(this.dataset.url)">Open Telegram</button></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
+  }catch(error){
+    toast(error.message||'Could not create a Telegram link.','error');
+  }
+};
 
 function openComposeModal(){
   const u=STATE.currentUser;
@@ -2246,7 +2736,7 @@ function openComposeModal(){
   <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="sendCompose()">Send Message</button></div>`);
 }
 
-function sendCompose(){
+async function sendCompose(){
   const u=STATE.currentUser;
   const toVal=document.getElementById('cm-to')?.value;
   const sub=document.getElementById('cm-sub')?.value.trim();
@@ -2264,9 +2754,21 @@ function sendCompose(){
     time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),
     read:false,studentId:sid,thread:null
   };
+  let delivery='local';
+  if(typeof api!=='undefined'&&api.getToken()){
+    try{
+      const result=await api.sendMessage({toRole,toId,subject:sub,body,studentId:sid});
+      newMsg.id=result.id||newMsg.id;
+      delivery=result.delivery||'in_app';
+    }catch(error){
+      toast(error.message||'Message could not be sent.','error');
+      return;
+    }
+  }
   STATE.messages.unshift(newMsg);
   updateUnreadBadge(); buildSidebar(u.role);
-  closeModal(); toast('Message sent successfully!');
+  closeModal();
+  toast(delivery==='telegram_sent'?'Message saved; Telegram notification sent.':delivery==='telegram_failed'?'Message saved in TrackEd, but Telegram notification failed.':delivery==='telegram_unlinked'?'Message saved in TrackEd; recipient has not linked Telegram.':'Message sent successfully!');
   nav('messages');
 }
 /* ════════════════════════════════════════
@@ -2275,7 +2777,7 @@ function sendCompose(){
 function pgAnnouncements(el){
   const isAdmin=STATE.currentUser.role==='admin';
   const isTeacher=STATE.currentUser.role==='teacher';
-  const canPost = isAdmin || isTeacher;
+  const canPost = isTeacher;
   const catIcons = {academic:'📚',event:'📅',holiday:'🎉',general:'📌'};
   window._annFilterCat = window._annFilterCat || 'all';
   function render(){
@@ -2416,12 +2918,18 @@ function pgParents(el){
     );
   }
 
+  function escapeAttribute(value){
+    return String(value ?? '').replace(/[&<>"']/g, character=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[character]));
+  }
+
   function renderRows(){
     const list = getFiltered();
     const tbody = document.getElementById('parents-tbody');
     if(!tbody) return;
     tbody.innerHTML = list.length===0
-      ?`<tr><td colspan="4"><div class="empty-state">
+      ?`<tr><td colspan="5"><div class="empty-state">
           <div class="es-icon">👨‍👩‍👧</div>
           <div class="es-title">No parents found</div>
           <div class="es-sub">Try a different keyword</div>
@@ -2434,13 +2942,18 @@ function pgParents(el){
         <td>${p.email}</td>
         <td>${p.phone}</td>
         <td>${p.children.map(cid=>STATE.students.find(s=>s.id===cid)?.name||cid).join(', ')}</td>
+        <td><button class="btn btn-danger btn-xs" type="button" data-delete-parent="${escapeAttribute(p.id)}" data-parent-name="${escapeAttribute(p.name)}">Delete</button></td>
       </tr>`).join('');
+    tbody.onclick = event=>{
+      const button = event.target.closest('[data-delete-parent]');
+      if(button) deleteParent(button.dataset.deleteParent, button.dataset.parentName);
+    };
   }
 
   el.innerHTML=`
   <div class="page-head">
     <div><div class="page-title">Parents</div>
-    <div class="page-sub" id="parents-count">${STATE.parents.length} parent(s) · Read-only monitor</div></div>
+    <div class="page-sub" id="parents-count">${STATE.parents.length} parent(s)</div></div>
     <div class="page-actions">
     </div>
   </div>
@@ -2452,7 +2965,7 @@ function pgParents(el){
     </div>
     <table>
       <thead><tr>
-        <th>Parent</th><th>Email</th><th>Phone</th><th>Children</th>
+        <th>Parent</th><th>Email</th><th>Phone</th><th>Children</th><th>Actions</th>
       </tr></thead>
       <tbody id="parents-tbody"></tbody>
     </table>
@@ -2476,6 +2989,7 @@ function openAddParentModal(){
       <div class="fg"><label>Full Name*</label><input id="pf-name" placeholder="Parent name"></div>
       <div class="fg"><label>Email*</label><input id="pf-email" type="email" placeholder="parent@email.com"></div>
       <div class="fg"><label>Phone</label><input id="pf-phone" placeholder="09XXXXXXXXX"></div>
+      <div class="fg"><label>Login Password*</label><div class="pass-wrap"><input id="pf-pass" type="password" placeholder="Create a password"><button type="button" class="pass-toggle" onclick="toggleFieldPassword('pf-pass', this)" aria-label="Show password"><svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zm10 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg></button></div></div>
       <div class="fg"><label>Child</label><select id="pf-child">
         <option value="">-- Select a student --</option>
         ${STATE.students.map(s=>`<option value="${s.id}">${s.name} (${s.grade} ${s.section})</option>`).join('')}
@@ -2526,6 +3040,10 @@ function deleteParent(id,name){
 /* ════════════════════════════════════════
    PROFILE PAGE
    ════════════════════════════════════════ */
+function profileDisplayName(name){
+  return String(name || '').replace(/^(Mr|Mrs|Ms|Dr)\.\s*/i, '').trim();
+}
+
 function pgProfile(el){
   const u = STATE.currentUser;
   const child = u.role==='parent'? STATE.students.find(s=>s.id===u.childId) : null;
@@ -2536,12 +3054,12 @@ function pgProfile(el){
   const avatarText = u.avatar ? '' : ini(u.name);
   const subjects = STATE.subjects || [];
   const teacherStudents = u.role==='teacher' ? STATE.students.filter(s=>s.section===u.section && s.grade===u.grade && s.status==='active') : [];
-  const classGrades = teacherStudents.flatMap(s=>{ const g = STATE.grades[s.id]; return g ? subjects.map(sub=>avg(g[sub])) : []; });
+  const classGrades = teacherStudents.flatMap(s=>{ const g = STATE.grades[s.id]; return g ? subjects.map(sub=>safeAverage(g[sub])).filter(score=>score!==null) : []; });
   const classAvg = classGrades.length ? Math.round(classGrades.reduce((a,b)=>a+b,0)/classGrades.length) : 0;
-  const lowPerformers = teacherStudents.filter(s=>{ const g = STATE.grades[s.id]; return g && subjects.some(sub=>avg(g[sub])<75); }).length;
+  const lowPerformers = teacherStudents.filter(s=>{ const g = STATE.grades[s.id]; return g && subjects.some(sub=>{const score=safeAverage(g[sub]);return score!==null&&score<75;}); }).length;
   const teacherAttendance = teacherStudents.length ? Math.round(teacherStudents.reduce((sum,s)=>{ const at = STATE.attendance[s.id]; return sum + (at?.total ? at.present/at.total : 0); },0)/teacherStudents.length * 100) : 0;
   const childGrades = child ? STATE.grades[child.id] : null;
-  const childAvg = childGrades && subjects.length ? Math.round(subjects.reduce((sum,sub)=>sum+avg(childGrades[sub]),0)/subjects.length) : 0;
+  const childAvg = childGrades && child ? overallAvg(childGrades,STATE.subjectSets[child.grade]||subjects) : 0;
   const childAttendance = child ? (()=>{ const at=STATE.attendance[child.id]; return at?.total ? Math.round(at.present/at.total*100) : 0; })() : 0;
   const schoolStudents = u.role==='admin' ? STATE.students.filter(s=>s.status==='active').length : 0;
   const schoolTeachers = u.role==='admin' ? STATE.teachers.length : 0;
@@ -2616,14 +3134,14 @@ function pgProfile(el){
       </div>
 
       <div style="text-align:center;margin-bottom:16px">
-        <div class="profile-name">${u.name}</div>
+        <div class="profile-name">${profileDisplayName(u.name)}</div>
         <div class="profile-role">${u.role.charAt(0).toUpperCase()+u.role.slice(1)} • ${secondary}</div>
       </div>
 
       <div class="divider"></div>
 
       <div class="form-grid form-row-2" style="margin-top:14px">
-        <div class="fg"><label>Full Name</label><input id="pf-name" value="${u.name}"></div>
+        <div class="fg"><label>Full Name</label><input id="pf-name" value="${profileDisplayName(u.name)}"></div>
         <div class="fg"><label>Email</label><input id="pf-email" type="email" value="${u.email}"></div>
         ${contactField}
         ${extraField}
@@ -2677,14 +3195,25 @@ function previewProfilePic(evt){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const avatar = document.getElementById('profile-avatar');
-    if(avatar){
-      avatar.style.backgroundImage=`url(${e.target.result})`;
-      avatar.style.backgroundSize='cover';
-      avatar.style.backgroundPosition='center';
-      avatar.textContent='';
-    }
-    window._profilePic = e.target.result;
+    const image = new Image();
+    image.onload = () => {
+      const maxSize = 512;
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+      const compressed = canvas.toDataURL('image/jpeg', .8);
+      const avatar = document.getElementById('profile-avatar');
+      if(avatar){
+        avatar.style.backgroundImage=`url(${compressed})`;
+        avatar.style.backgroundSize='cover';
+        avatar.style.backgroundPosition='center';
+        avatar.textContent='';
+      }
+      window._profilePic = compressed;
+    };
+    image.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -2710,18 +3239,17 @@ function pgReports(el){
   const isTeacher=role==='teacher';
   const myStudents=isTeacher?STATE.students.filter(s=>s.section===STATE.currentUser.section&&s.grade===STATE.currentUser.grade):STATE.students;
   let allOv=[];
-  myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g){const ov=Math.round(STATE.subjects.reduce((a,sub)=>a+avg(g[sub]),0)/STATE.subjects.length);allOv.push({name:s.name,id:s.id,ov});}});
+  myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g){const ov=overallAvg(g,STATE.subjectSets[s.grade]||STATE.subjects);allOv.push({name:s.name,id:s.id,grade:s.grade,ov});}});
   const sorted=[...allOv].sort((a,b)=>b.ov-a.ov);
+  const grade1Cohort=myStudents.length>0&&myStudents.every(student=>student.grade==='Grade 1');
 
   el.innerHTML=`
   <div class="page-head"><div><div class="page-title">Reports &amp; Analytics</div><div class="page-sub">Generate and export academic data</div></div></div>
 
   <div class="g2 mb-16">
     ${[
-      {title:'Student Report Card',desc:'Individual quarterly report card for each student.',icon:'📋',action:"nav('reportcard')",label:'Open'},
-      {title:'Class Performance Report',desc:'Summary of grades across all subjects and quarters.',icon:'📊',action:"downloadClassPerformanceCSV()",label:'Export CSV'},
-      {title:'Attendance Report',desc:'Complete attendance records with rates per student.',icon:'📅',action:"downloadAttendanceCSV()",label:'Export CSV'},
-      {title:'Class & School Ranking',desc:'See honors and rankings for the whole class.',icon:'🏆',action:"nav('ranking')",label:'Open'},
+      {title:'Class Performance Report',desc:'Summary of grades across all subjects and quarters.',icon:'📊',action:"downloadClassPerformancePDF()",label:'Download PDF'},
+      {title:'Attendance Report',desc:'Complete attendance records with rates per student.',icon:'📅',action:"downloadAttendancePDF()",label:'Download PDF'},
     ].map(r=>`<div class="card flex aic gap-14">
       <div style="width:48px;height:48px;background:var(--green-l);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${r.icon}</div>
       <div class="f1"><div class="fw7 ts mb-4">${r.title}</div><div class="txs tm mb-10">${r.desc}</div><div class="flex gap-8"><button class="btn btn-primary btn-xs" onclick="${r.action}">${r.label}</button></div></div>
@@ -2735,49 +3263,46 @@ function pgReports(el){
         <div class="flex aic gap-12" style="padding:10px 0;border-bottom:1px solid var(--border)">
           <div style="width:28px;height:28px;border-radius:50%;background:${i===0?'#C79800':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--surface2)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${i<3?'#fff':'var(--text2)'};flex-shrink:0">${i+1}</div>
           <div class="f1 fw6 ts">${item.name}</div>
-          <span class="badge ${gbadge(item.ov)}">${item.ov}</span>
+          <span class="badge ${gbadge(item.ov)}">${gradeDisplay({grade:item.grade},item.ov)}</span>
         </div>`).join('')}
     </div>
 
     <div class="card">
       <div class="card-header"><div class="card-title" style="margin:0">Subject Averages</div></div>
       ${STATE.subjects.map(sub=>{
-        let vals=[];myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g&&g[sub]) vals.push(avg(g[sub]));});
+        let vals=[];myStudents.forEach(s=>{const g=STATE.grades[s.id];const score=g?safeAverage(g[sub]):null;if(score!==null) vals.push(score);});
         const sa=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
+        const shownAverage=grade1Cohort?gradeDisplay({grade:'Grade 1'},sa):sa;
         return `<div class="prog-wrap">
-          <div class="prog-top"><span class="ts fw6">${STATE.subjectLabels[sub]}</span><span class="badge ${gbadge(sa)}">${sa}</span></div>
+          <div class="prog-top"><span class="ts fw6">${STATE.subjectLabels[sub]}</span><span class="badge ${gbadge(sa)}">${shownAverage}</span></div>
           <div class="prog-track"><div class="prog-fill" style="width:${sa}%;background:${gcol(sa)}"></div></div>
-          <div class="txs tmm">${glabel(sa)}</div>
+          <div class="txs tmm">${grade1Cohort?grade1Descriptor(shownAverage)?.name:glabel(sa)}</div>
         </div>`;
       }).join('')}
     </div>
   </div>`;
 
-  window.downloadClassPerformanceCSV = function(){
+  window.downloadClassPerformancePDF = function(){
     const header=['Rank','Name','LRN',...STATE.subjects.map(s=>STATE.subjectLabels[s]),'General Average','Descriptor','Honors'];
     const rows=[header];
     sorted.forEach((item,i)=>{
       const s = STATE.students.find(x=>x.id===item.id);
       const g = STATE.grades[item.id]||{};
       const h = getHonors(item.ov);
-      rows.push([i+1, item.name, s?.lrn||'', ...STATE.subjects.map(sub=>avg(g[sub]||[])), item.ov, glabel(item.ov), h?h.label:'']);
+      rows.push([i+1, item.name, s?.lrn||'', ...STATE.subjects.map(sub=>gradeDisplay(s,avg(g[sub]||[]))), gradeDisplay(s,item.ov), s?.grade==='Grade 1'?grade1Descriptor(gradeDisplay(s,item.ov))?.name:glabel(item.ov), h?h.label:'']);
     });
-    const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-    const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='class_performance.csv'; a.click();
-    toast('Class Performance CSV downloaded!');
+    downloadPdf('class_performance.pdf','Class Performance Report',header,rows);
   };
 
-  window.downloadAttendanceCSV = function(){
-    const header=['Name','Present','Absent','Late','Total Days','Rate %'];
+  window.downloadAttendancePDF = function(){
+    const header=['Name','Present','Absent','Late','Half-day','Total Days','Rate %'];
     const rows=[header];
     myStudents.forEach(s=>{
       const at = STATE.attendance[s.id]||{present:0,absent:0,late:0,total:0};
       const rate = at.total?Math.round(at.present/at.total*100):0;
-      rows.push([s.name, at.present, at.absent, at.late, at.total, rate+'%']);
+      rows.push([s.name, at.present, at.absent, at.late, at.half_day||0, at.total, rate+'%']);
     });
-    const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
-    const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='attendance_report.csv'; a.click();
-    toast('Attendance CSV downloaded!');
+    downloadPdf('attendance_report.pdf','Attendance Report',header,rows);
   };
 }
 
@@ -2807,10 +3332,10 @@ function checkAndSendFailingAlerts(studentId, subject, quarterLabel, score, teac
 
   const alertMsg = {
     id: STATE.nextMsgId++,
-    fromRole:'system', fromId:'system', fromName:'🔔 SmartGrade Alert',
+    fromRole:'system', fromId:'system', fromName:'🔔 TrackEd Alert',
     toRole:'parent', toId:parent.id,
     subject:`Academic Alert: ${student.name} — ${subjectLabel} (${quarterLabel})`,
-    body:`This is an automated notification from SmartGrade.\n\n${student.name} has received a grade of ${score} in ${subjectLabel} for ${quarterLabel}, which is below the passing mark of 75.\n\nPlease coordinate with ${teacherName||'the class teacher'} at your earliest convenience to discuss how to support your child's academic performance.\n\nThank you for your continued support.`,
+    body:`This is an automated notification from TrackEd.\n\n${student.name} has received a grade of ${score} in ${subjectLabel} for ${quarterLabel}, which is below the passing mark of 75.\n\nPlease coordinate with ${teacherName||'the class teacher'} at your earliest convenience to discuss how to support your child's academic performance.\n\nThank you for your continued support.`,
     date:new Date().toISOString().split('T')[0],
     time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),
     read:false, studentId, thread:null, isAlert:true,
@@ -2844,7 +3369,8 @@ function pgRanking(el){
 
   function studentAvg(sid){
     const g = STATE.grades[sid]; if(!g) return 0;
-    return Math.round(STATE.subjects.reduce((a,sub)=>a+avg(g[sub]||[]),0)/STATE.subjects.length);
+    const student=STATE.students.find(item=>item.id===sid);
+    return student?overallAvg(g,STATE.subjectSets[student.grade]||STATE.subjects):0;
   }
 
   function renderClassRanking(students, title, showBack){
@@ -2853,7 +3379,7 @@ function pgRanking(el){
     el.innerHTML = `
     <div class="page-head">
       <div>
-        ${showBack?`<button class="btn btn-secondary btn-sm mb-8" onclick="pgRanking(document.getElementById('content'))">← Back to All Classes</button>`:''}
+        ${showBack?`<button class="btn btn-secondary btn-sm mb-8" onclick="pgRanking(document.getElementById('content'))">Back to All Classes</button>`:''}
         <div class="page-title">Class Ranking 🏆</div>
         <div class="page-sub">${title} — ${ranked.length} students</div>
       </div>
@@ -2883,8 +3409,8 @@ function pgRanking(el){
               <td><div style="width:26px;height:26px;border-radius:50%;background:${i===0?'#C79800':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--surface2)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${i<3?'#fff':'var(--text2)'}">${i+1}</div></td>
               <td><div class="flex aic gap-8"><div class="av av-32 av-green">${ini(s.name)}</div><div class="fw6">${s.name}</div></div></td>
               <td class="txs tm">${s.grade} – ${s.section}</td>
-              ${STATE.subjects.map(sub=>{const sc=avg((STATE.grades[s.id]||{})[sub]||[]);return `<td><span class="badge ${gbadge(sc)}">${sc}</span></td>`;}).join('')}
-              <td><strong style="font-size:15px;color:${gcol(s.ov)}">${s.ov}</strong></td>
+              ${STATE.subjects.map(sub=>{const sc=avg((STATE.grades[s.id]||{})[sub]||[]);return `<td><span class="badge ${gbadge(sc)}">${gradeDisplay(s,sc)}</span></td>`;}).join('')}
+              <td><strong style="font-size:15px;color:${gcol(s.ov)}">${gradeDisplay(s,s.ov)}</strong></td>
               <td>${h?`<span style="color:var(--gold);font-size:12px">${h.icon} ${h.label}</span>`:'<span class="txs tmm">—</span>'}</td>
             </tr>`;
           }).join('')}
@@ -2914,7 +3440,7 @@ function pgRanking(el){
         <div class="flex aic gap-12 mb-12">
           <div style="width:44px;height:44px;background:var(--blue-l);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px">🏫</div>
           <div class="f1"><div class="fw7 ts">${c.grade} – ${c.section}</div><div class="txs tmm">${t?t.name:'No teacher'} · ${clsStudents.length} students</div></div>
-          <span class="badge ${gbadge(clsAvg)}">${clsAvg||'–'}</span>
+          <span class="badge ${gbadge(clsAvg)}">${clsAvg?gradeDisplay({grade:c.grade},clsAvg):'–'}</span>
         </div>
         <div class="flex aic gap-8"><span class="badge" style="background:var(--gold-l);color:var(--gold)">${honorCount} Honor Students</span></div>
       </div>`;
@@ -2944,8 +3470,10 @@ function pgReportCard(el){
     const g = STATE.grades[s.id]||{};
     const at = STATE.attendance[s.id]||{present:0,absent:0,late:0,total:0};
     const teacher = STATE.teachers.find(t=>t.grade===s.grade&&t.section===s.section);
-    const ov = Math.round(STATE.subjects.reduce((a,sub)=>a+avg(g[sub]||[]),0)/STATE.subjects.length);
-    const honors = getHonors(ov);
+    const gradesForStudent = STATE.subjects.map(sub => safeAverage(g[sub] || []));
+    const validAverages = gradesForStudent.filter(v => v !== null);
+    const ov = validAverages.length ? Math.round(validAverages.reduce((a,b)=>a+b,0) / validAverages.length) : null;
+    const honors = ov !== null ? getHonors(ov) : null;
 
     el.innerHTML = `
     <div class="page-head">
@@ -2985,24 +3513,28 @@ function pgReportCard(el){
         <thead><tr><th rowspan="2">Learning Area</th><th colspan="4">Quarter</th><th rowspan="2">Final Grade</th><th rowspan="2">Descriptor</th></tr><tr><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
         <tbody>
           ${STATE.subjects.map(sub=>{
-            const scores=g[sub]||[0,0,0,0];
-            const fin = scores.filter(v=>v>0).length?Math.round(scores.filter(v=>v>0).reduce((a,b)=>a+b,0)/scores.filter(v=>v>0).length):0;
-            return `<tr><td class="rc-subject">${STATE.subjectLabels[sub]}</td>${scores.map(sc=>`<td class="rc-score" style="${sc>0&&sc<75?'color:var(--red);font-weight:700':sc>=90?'color:var(--green);font-weight:700':''}">${sc||'—'}</td>`).join('')}<td class="rc-final" style="color:${gcol(fin)}">${fin||'—'}</td><td class="rc-desc">${fin?glabel(fin):'—'}</td></tr>`;
+            const scores = Array.isArray(g[sub]) ? g[sub] : [0,0,0,0];
+            const fin = safeAverage(scores);
+            const finalLetter=fin!==null?gradeDisplay(s,fin):'—';
+            const descriptor=s.grade==='Grade 1'?grade1Descriptor(finalLetter):null;
+            return `<tr><td class="rc-subject">${STATE.subjectLabels[sub]}</td>${scores.map(sc=>`<td class="rc-score" style="${Number.isFinite(sc)&&sc>0&&sc<75?'color:var(--red);font-weight:700':Number.isFinite(sc)&&sc>=90?'color:var(--green);font-weight:700':''}">${Number.isFinite(sc)&&sc>0 ? gradeDisplay(s,sc) : '—'}</td>`).join('')}<td class="rc-final" style="color:${fin !== null ? gcol(fin) : 'var(--text3)'}">${fin !== null ? finalLetter : '—'}</td><td class="rc-desc">${fin !== null ? (descriptor?.name||glabel(fin)) : '—'}</td></tr>`;
           }).join('')}
           <tr class="rc-total-row"><td class="rc-subject">General Average</td>
-            ${STATE.quarters.slice(0,4).map((_,qi)=>{ const vals=STATE.subjects.map(sub=>(g[sub]&&g[sub][qi])||0).filter(v=>v>0); const qa=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0; return `<td class="rc-score" style="color:${gcol(qa)}">${qa||'—'}</td>`; }).join('')}
-            <td class="rc-final" style="font-size:16px;color:${gcol(ov)}">${ov||'—'}</td><td class="rc-desc">${ov?glabel(ov):'—'}</td></tr>
+            ${STATE.quarters.slice(0,4).map((_,qi)=>{ const vals=STATE.subjects.map(sub => Number.isFinite(g[sub]?.[qi]) && g[sub][qi] > 0 ? g[sub][qi] : null).filter(v => v !== null); const qa = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null; return `<td class="rc-score" style="color:${qa !== null ? gcol(qa) : 'var(--text3)'}">${qa !== null ? gradeDisplay(s,qa) : '—'}</td>`; }).join('')}
+            <td class="rc-final" style="font-size:16px;color:${ov !== null ? gcol(ov) : 'var(--text3)'}">${ov !== null ? gradeDisplay(s,ov) : '—'}</td><td class="rc-desc">${ov !== null ? (grade1Descriptor(gradeDisplay(s,ov))?.name||glabel(ov)) : '—'}</td></tr>
         </tbody>
       </table>
-      ${honors?`<div class="rc-honors-badge"><span style="font-size:20px">${honors.icon}</span> <strong>${honors.label}</strong> — General Average: ${ov}</div>`:''}
+      ${honors?`<div class="rc-honors-badge"><span style="font-size:20px">${honors.icon}</span> <strong>${honors.label}</strong> — General Average: ${ov===null?'—':gradeDisplay(s,ov)}</div>`:''}
       <div class="rc-section-title" style="margin-top:16px">ATTENDANCE SUMMARY</div>
       <table class="rc-table rc-att-table">
         <thead><tr><th>Days Present</th><th>Days Absent</th><th>Days Late</th><th>Total School Days</th></tr></thead>
         <tbody><tr><td class="rc-score" style="color:var(--green)">${at.present}</td><td class="rc-score" style="color:var(--red)">${at.absent}</td><td class="rc-score" style="color:var(--amber)">${at.late}</td><td class="rc-score">${at.total}</td></tr></tbody>
       </table>
       <div class="rc-section-title" style="margin-top:16px">GRADING SCALE</div>
-      <div class="rc-scale-grid">
-        ${[['90–100','Outstanding'],['85–89','Very Satisfactory'],['80–84','Satisfactory'],['75–79','Fairly Satisfactory'],['Below 75','Did Not Meet']].map(([r,d])=>`<div class="rc-scale-item"><span class="rc-scale-range">${r}</span><span class="rc-scale-desc">${d}</span></div>`).join('')}
+      <div class="rc-scale-grid ${s.grade==='Grade 1'?'rc-grade1-scale':''}">
+        ${s.grade==='Grade 1'
+          ? grade1Scale.map(level=>`<div class="rc-scale-item"><span class="rc-scale-range">${level.letter}</span><span class="rc-scale-desc"><strong>${level.name}</strong><br>${level.description}</span></div>`).join('')
+          : [['90–100','Outstanding'],['85–89','Very Satisfactory'],['80–84','Satisfactory'],['75–79','Fairly Satisfactory'],['Below 75','Did Not Meet']].map(([r,d])=>`<div class="rc-scale-item"><span class="rc-scale-range">${r}</span><span class="rc-scale-desc">${d}</span></div>`).join('')}
       </div>
       <div class="rc-sig-row">
         <div class="rc-sig-block"><div class="rc-sig-line"></div><div class="rc-sig-name">${teacher?.name||'Class Adviser'}</div><div class="rc-sig-role">Class Adviser</div></div>
@@ -3120,7 +3652,12 @@ function pgParentsTeacher(el){
   el.innerHTML = `
   <div class="page-head">
     <div><div class="page-title">Manage Parents</div><div class="page-sub">Parents linked to ${u.grade} – ${u.section}</div></div>
-    <div class="page-actions"><button class="btn btn-primary" onclick="openAddParentTeacherModal()">+ Add Parent</button></div>
+    <div class="page-actions">
+      <button class="btn btn-secondary" onclick="exportParents()">Export</button>
+      <label class="btn btn-secondary" for="parent-csv-file">Import</label>
+      <input id="parent-csv-file" type="file" accept=".csv,text/csv" hidden onchange="importParentsCsv(this)">
+      <button class="btn btn-primary" onclick="openAddParentTeacherModal()">+ Add Parent</button>
+    </div>
   </div>
   <div class="tbl-wrap">
     <table>
@@ -3145,7 +3682,7 @@ function openAddParentTeacherModal(){
       <div class="fg"><label>Full Name*</label><input id="pt-name" placeholder="Parent/Guardian name"></div>
       <div class="fg"><label>Email* (used for login)</label><input id="pt-email" type="email" placeholder="parent@email.com"></div>
       <div class="fg"><label>Phone*</label><input id="pt-phone" placeholder="09XXXXXXXXX"></div>
-      <div class="fg"><label>Password*</label><input id="pt-pass" type="password" placeholder="Create a password"></div>
+      <div class="fg"><label>Password*</label><div class="pass-wrap"><input id="pt-pass" type="password" placeholder="Create a password"><button type="button" class="pass-toggle" onclick="toggleFieldPassword('pt-pass', this)" aria-label="Show password"><svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zm10 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg></button></div></div>
       <div class="fg" style="grid-column:span 2"><label>Linked Student*</label><select id="pt-child">
         <option value="">-- Select student --</option>
         ${unlinked.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
@@ -3172,4 +3709,81 @@ function saveParentTeacher(){
   closeModal();
   toast(`✓ Parent ${name} added! Login: ${email} / ${pass}`);
   if(typeof window.refreshParentRowsTeacher==='function') window.refreshParentRowsTeacher();
+}
+
+function exportParents(){
+  const teacher=STATE.currentUser;
+  const classStudents=STATE.students.filter(student=>student.grade===teacher.grade&&student.section===teacher.section);
+  const rows=[['Name','Email','Phone','Password','Student ID','Student Name']];
+  STATE.parents.forEach(parent=>{
+    classStudents.filter(student=>(parent.children||[]).includes(student.id)).forEach(student=>{
+      rows.push([parent.name,parent.email,parent.phone,'',student.id,student.name]);
+    });
+  });
+  downloadCsv('parents.csv',rows);
+}
+
+async function importParentsCsv(input){
+  const file=input.files?.[0];
+  input.value='';
+  if(!file) return;
+  const teacher=STATE.currentUser;
+  const classStudents=STATE.students.filter(student=>student.grade===teacher.grade&&student.section===teacher.section);
+  try{
+    const rows=parseCsv((await file.text()).replace(/^\uFEFF/,''));
+    if(rows.length<2) throw new Error('The spreadsheet has no parent rows.');
+    const headers=rows[0].map(header=>header.trim().toLowerCase());
+    const column=name=>headers.indexOf(name.toLowerCase());
+    const required=['Name','Email','Phone','Password'].map(column);
+    if(required.some(index=>index<0)||column('Student ID')<0&&column('LRN')<0){
+      throw new Error('Include Name, Email, Phone, Password, and Student ID or LRN columns.');
+    }
+    const existingEmails=new Set([
+      ...STATE.parents.map(parent=>parent.email.toLowerCase()),
+      ...Object.values(STATE.users).map(user=>user.email.toLowerCase()),
+    ]);
+    const assignedChildren=new Set(STATE.parents.flatMap(parent=>parent.children||[]));
+    const prepared=[];
+    for(const [index,cells] of rows.slice(1).entries()){
+      const value=name=>{const position=column(name);return position<0?'':(cells[position]||'').trim();};
+      const name=value('Name'), email=value('Email').toLowerCase(), phone=value('Phone'), password=value('Password');
+      const childKey=value('Student ID')||value('LRN');
+      const child=classStudents.find(student=>student.id.toLowerCase()===childKey.toLowerCase()||(student.lrn||'')===childKey);
+      if(!name||!email||!phone||!password||!childKey) throw new Error(`Row ${index+2}: name, email, phone, password, and student ID/LRN are required.`);
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(`Row ${index+2}: enter a valid email address.`);
+      if(existingEmails.has(email)) throw new Error(`Row ${index+2}: ${email} already has a parent account.`);
+      if(!child) throw new Error(`Row ${index+2}: student ${childKey} is not in your class.`);
+      if(assignedChildren.has(child.id)) throw new Error(`Row ${index+2}: ${child.name} already has a parent linked.`);
+      existingEmails.add(email); assignedChildren.add(child.id);
+      prepared.push({name,email,phone,password,childId:child.id,child});
+    }
+
+    let imported=0;
+    const useApi=typeof api!=='undefined'&&Boolean(api.getToken());
+    try{
+      for(const parent of prepared){
+        let id;
+        if(useApi){
+          const created=await api.addParent({name:parent.name,email:parent.email,phone:parent.phone,password:parent.password,childId:parent.childId});
+          id=created.id;
+          STATE.users[id]={role:'parent',id,name:parent.name,email:parent.email,password:'',childId:parent.childId};
+        }else{
+          if(!STATE.nextParentId) STATE.nextParentId=STATE.parents.length+1;
+          id='P'+String(STATE.nextParentId++).padStart(3,'0');
+          STATE.users[id]={role:'parent',id,name:parent.name,email:parent.email,password:parent.password,childId:parent.childId};
+        }
+        STATE.parents.push({id,name:parent.name,email:parent.email,phone:parent.phone,children:[parent.childId]});
+        parent.child.parentId=id; parent.child.parent=parent.name; parent.child.parentEmail=parent.email;
+        imported++;
+      }
+    }catch(error){
+      toast(`${imported} parent(s) imported; stopped at the next row: ${error.message||'API request failed.'}`,'error');
+      if(imported&&typeof window.refreshParentRowsTeacher==='function') window.refreshParentRowsTeacher();
+      return;
+    }
+    toast(`${imported} parent account(s) imported.`);
+    if(typeof window.refreshParentRowsTeacher==='function') window.refreshParentRowsTeacher();
+  }catch(error){
+    toast(error.message||'Could not import this spreadsheet.','error');
+  }
 }

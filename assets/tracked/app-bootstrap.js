@@ -35,26 +35,19 @@ window.doLogin = async function() {
     console.log("[TrackEd] Logged in via API ✓");
 
   } catch (apiErr) {
-    console.warn("[TrackEd] API login failed, trying local fallback:", apiErr.message);
-
-    // ── Fallback: local STATE.users (works when backend is offline) ─────────
-    let foundUser = null;
-    for (const role in STATE.users) {
-      const u = STATE.users[role];
-      if (u.email === email && u.password === password) {
-        foundUser = u; break;
-      }
+    const localUser = Object.values(STATE.users).find(candidate =>
+      candidate.email === email && candidate.password === password
+    );
+    if (!localUser) {
+      if (btn) { btn.textContent = "Sign In to TrackEd"; btn.disabled = false; }
+      toast(apiErr.message || "TrackEd is currently unavailable.", "error");
+      return;
     }
-    if (!foundUser) {
-      if (btn) { btn.textContent = "Sign In to TrackEd →"; btn.disabled = false; }
-      toast("Invalid email or password.", "error"); return;
-    }
-    user = foundUser;
+    user = { ...localUser };
     STATE.currentUser = user;
-    console.log("[TrackEd] Logged in via local fallback ✓");
   }
 
-  if (btn) { btn.textContent = "Sign In to TrackEd →"; btn.disabled = false; }
+  if (btn) { btn.textContent = "Sign In to TrackEd"; btn.disabled = false; }
 
   // ── Boot the app UI ───────────────────────────────────────────────────────
   document.getElementById("login-page").style.display = "none";
@@ -72,6 +65,60 @@ window.doLogin = async function() {
   patchScriptWithAPI();
 
   nav("dashboard");
+};
+
+function lockAppOffline() {
+  api.logout();
+  STATE.currentUser = null;
+  document.body.classList.remove("online-ready");
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login-page").style.display = "none";
+  document.getElementById("offline-gate").classList.add("visible");
+}
+
+async function checkOnlineAccess() {
+  const available = navigator.onLine !== false;
+  const gate = document.getElementById("offline-gate");
+  if (!available) {
+    gate.classList.add("visible");
+    return false;
+  }
+  gate.classList.remove("visible");
+  document.body.classList.add("online-ready");
+  document.getElementById("login-page").style.display = "grid";
+  return true;
+}
+
+window.checkOnlineAccess = checkOnlineAccess;
+window.addEventListener("offline", lockAppOffline);
+window.addEventListener("online", checkOnlineAccess);
+checkOnlineAccess();
+setInterval(async () => {
+  if (document.getElementById("app").style.display === "flex" && navigator.onLine === false) {
+    lockAppOffline();
+  }
+}, 60000);
+
+window.doRegisterTeacher = async function() {
+  const data = {
+    name: document.getElementById("r-name")?.value.trim(),
+    email: document.getElementById("r-email")?.value.trim(),
+    password: document.getElementById("r-pass")?.value.trim(),
+    phone: document.getElementById("r-phone")?.value.trim() || "",
+    grade: document.getElementById("r-grade")?.value,
+    section: document.getElementById("r-section")?.value.trim(),
+  };
+  if (!data.name || !data.email || !data.password || !data.grade || !data.section) {
+    toast("Please fill all required fields.", "error");
+    return;
+  }
+  try {
+    const result = await api.registerTeacher(data);
+    toast(result.message || "Registration submitted.");
+    showLoginTab("login");
+  } catch (err) {
+    toast(err.message || "Registration failed.", "error");
+  }
 };
 
 // ── API-backed logout ────────────────────────────────────────────────────────
@@ -119,6 +166,7 @@ window.submitForgotPassword = async function() {
 
 // ── Auto-login if a valid token exists ───────────────────────────────────────
 (async function autoLogin() {
+  if (!await checkOnlineAccess()) return;
   const token = api.getToken();
   if (!token) return;
 
@@ -148,3 +196,31 @@ window.submitForgotPassword = async function() {
     api.logout();
   }
 })();
+
+const originalApproveTeacher = window.approveTeacher;
+window.approveTeacher = async function(id) {
+  try {
+    const result = await api.approveTeacher(id);
+    const pending = STATE.pendingTeachers?.find(t => t.id === id);
+    if (pending) pending.status = "approved";
+    toast(result.message || "Teacher approved.");
+    nav("approvals");
+  } catch (err) {
+    toast(err.message || "Approval failed.", "error");
+  }
+};
+
+const originalRejectTeacher = window.rejectTeacher;
+window.rejectTeacher = function(id, name) {
+  showConfirm("Reject Application", `Reject application from <strong>${name}</strong>?`, async () => {
+    try {
+      const result = await api.rejectTeacher(id);
+      const pending = STATE.pendingTeachers?.find(t => t.id === id);
+      if (pending) pending.status = "rejected";
+      toast(result.message || "Application rejected.", "error");
+      nav("approvals");
+    } catch (err) {
+      toast(err.message || "Rejection failed.", "error");
+    }
+  });
+};

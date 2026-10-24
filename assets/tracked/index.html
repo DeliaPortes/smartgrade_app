@@ -3,12 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SmartGrade – Academic Monitoring & Communication System</title>
+<title>TrackEd – Academic Monitoring & Communication System</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<div id="offline-gate" class="offline-gate" role="status" aria-live="polite">
+  <div class="offline-gate-box">
+    <div class="offline-gate-title">TrackEd is unavailable offline</div>
+    <p>Connect to the internet to use TrackEd.</p>
+    <button type="button" class="btn btn-primary" onclick="checkOnlineAccess()">Try Again</button>
+  </div>
+</div>
 
 <!-- ═══════════════ LOGIN PAGE ═══════════════ -->
 <div id="login-page">
@@ -16,8 +24,8 @@
     <div class="hero-deco hero-deco-1"></div>
     <div class="hero-deco hero-deco-2"></div>
     <div class="ll-logo">
-      <div class="ll-icon"><img src="images/logo.png" alt="SmartGrade logo"></div>
-      <div class="ll-brand smartgrade-gradient">SmartGrade</div>
+      <div class="ll-icon"><img src="images/logo.png" alt="TrackEd logo"></div>
+      <div class="ll-brand tracked-gradient">TrackEd</div>
     </div>
   </div>
   <div class="login-right">
@@ -26,18 +34,18 @@
       <!-- ORIGINAL sign-in form (unchanged) -->
       <div id="login-form-section">
         <div class="lbox-title">Welcome back!</div>
-        <div class="lbox-sub">Sign in to access your SmartGrade dashboard</div>
+        <div class="lbox-sub">Sign in to access your TrackEd dashboard</div>
         <div class="lf">
-          <label>Email Address</label>
+          <label for="l-email">Email Address</label>
           <input id="l-email" type="email" value="" placeholder="your@email.com">
         </div>
 
         <div class="lf">
-          <label>Password</label>
+          <label for="l-pass">Password</label>
           <div class="pass-wrap">
             <input id="l-pass" type="password" placeholder="Enter your password">
             <button type="button" class="pass-toggle" id="pass-toggle" onclick="togglePasswordVisibility()" aria-label="Show password">
-              <i class="fa-solid fa-eye"></i>
+              <svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zm10 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg>
             </button>
           </div>
         </div>
@@ -45,18 +53,18 @@
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;color:#18180E;font-weight:500">
             <input type="checkbox" id="remember-me" style="width:14px;height:14px;border-radius:3px;cursor:pointer;accent-color:var(--green)"> Remember Me
           </label>
-          <span onclick="openForgotPassword()"
+          <button type="button" class="text-link" onclick="openForgotPassword()"
             style="font-size:12px;color:var(--green);cursor:pointer;font-weight:600">
             Forgot Password?
-          </span>
+          </button>
         </div>
-        <button class="login-cta" onclick="doLogin()">Sign In to SmartGrade →</button>
-        <div class="demo-box" id="demo-hint"><strong>Demo Access:</strong><br>Welcome!</div>
+        <button class="login-cta" onclick="doLogin()">Sign In to TrackEd</button>
 
         <!-- NEW: link to teacher self-registration -->
         <div class="login-switch-link">
-          Don't have an account? <span onclick="showLoginTab('register')">Sign up as a Teacher</span>
+          Don't have an account? <button type="button" class="text-link" onclick="showLoginTab('register')">Sign up as a Teacher</button>
         </div>
+        <p class="login-disclosure">By signing in to this app, you agree to the <button type="button" class="text-link" onclick="openLegal('terms')">TrackEd Terms and Conditions</button> and acknowledge the <button type="button" class="text-link" onclick="openLegal('privacy')">Privacy Policy</button>.</p>
       </div>
 
       <!-- NEW: teacher self-registration form (hidden by default) -->
@@ -64,30 +72,28 @@
         <div class="lbox-title">Teacher Sign Up</div>
         <div class="lbox-sub">Register as a teacher account</div>
 
-        <div class="reg-info-box">
-          <strong>ℹ How it works:</strong> Submit your registration below.
-          The school admin will review and approve your account before you can log in.
-        </div>
-
         <div class="form-grid form-row-2" style="gap:11px;margin-bottom:12px">
           <div class="lf" style="margin-bottom:0">
-            <label>Full Name*</label>
+            <label for="r-name">Full Name (required)</label>
             <input id="r-name" type="text" placeholder="e.g. Ms. Maria Santos">
           </div>
           <div class="lf" style="margin-bottom:0">
-            <label>Email Address*</label>
+            <label for="r-email">Email Address (required)</label>
             <input id="r-email" type="email" placeholder="teacher@school.edu">
           </div>
           <div class="lf" style="margin-bottom:0">
-            <label>Password*</label>
-            <input id="r-pass" type="password" placeholder="Create a password">
+            <label for="r-pass">Password (required)</label>
+            <div class="pass-wrap">
+              <input id="r-pass" type="password" placeholder="Create a password">
+              <button type="button" class="pass-toggle" onclick="toggleFieldPassword('r-pass', this)" aria-label="Show password"><svg class="password-eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zm10 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/></svg></button>
+            </div>
           </div>
           <div class="lf" style="margin-bottom:0">
-            <label>Phone Number</label>
+            <label for="r-phone">Phone Number</label>
             <input id="r-phone" type="tel" placeholder="09XXXXXXXXX">
           </div>
           <div class="lf" style="margin-bottom:0">
-            <label>Grade Level*</label>
+            <label for="r-grade">Grade Level (required)</label>
             <select id="r-grade">
               <option value="Grade 1">Grade 1</option>
               <option value="Grade 2">Grade 2</option>
@@ -95,15 +101,17 @@
             </select>
           </div>
           <div class="lf" style="margin-bottom:0">
-            <label>Section*</label>
+            <label for="r-section">Section (required)</label>
             <input id="r-section" type="text" placeholder="e.g. Sampaguita">
           </div>
         </div>
 
-        <button class="login-cta" onclick="doRegisterTeacher()">Submit Registration →</button>
+        <p class="form-disclosure">The school uses these details to review and create your teacher account and to operate TrackEd. See the Privacy Policy for details.</p>
+
+        <button class="login-cta" onclick="doRegisterTeacher()">Submit Registration</button>
 
         <div class="login-switch-link">
-          Already have an account? <span onclick="showLoginTab('login')">Sign in here</span>
+          Already have an account? <button type="button" class="text-link" onclick="showLoginTab('login')">Sign in here</button>
         </div>
       </div>
 
@@ -114,10 +122,10 @@
 <!-- ═══════════════ APP SHELL ═══════════════ -->
 <div id="app" style="flex-direction:column">
  <div class="topbar">
-  <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn">
+  <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn" type="button" aria-label="Open navigation menu" title="Open navigation menu">
     <span></span><span></span><span></span>
   </button>
-    <div class="tb-brand"><img class="tb-brand-logo" src="images/logo.png" alt="SmartGrade logo"><span class="tb-brand-text">SmartGrade</span></div>
+    <div class="tb-brand"><img class="tb-brand-logo" src="images/logo.png" alt="TrackEd logo"><span class="tb-brand-text">TrackEd</span></div>
     <button class="tb-notif-btn" onclick="openNotifications()" title="Announcements">
       <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
       <span class="tb-topbadge" id="notif-badge" style="display:none"></span>
@@ -145,6 +153,9 @@
 
 <!-- NEW: EmailJS, used only for the failing-grade alert email (script.js checks it exists before using it) -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
 <script src="script.js"></script>
+<script src="api.js"></script>
+<script src="app-bootstrap.js"></script>
 </body>
 </html>

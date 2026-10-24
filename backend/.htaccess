@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# Let real files/folders (if any) be served directly.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Everything else under this folder goes through index.php,
+# which reads PATH_INFO to figure out the route.
+RewriteRule ^(.*)$ index.php [QSA,L]

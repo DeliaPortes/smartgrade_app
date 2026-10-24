@@ -1,12 +1,12 @@
 /**
  * TrackEd API Client
- * All communication with the Flask REST backend goes through this module.
+ * All communication with the PHP REST backend goes through this module.
  * Falls back gracefully if the backend is offline (uses STATE data).
  */
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://tracked.infinityfree.io/api";
 
-let _token = localStorage.getItem("sg_token") || null;
+let _token = sessionStorage.getItem("sg_token") || null;
 
 // ── Core fetch wrapper ──────────────────────────────────────────────────────
 
@@ -14,23 +14,72 @@ async function apiFetch(path, options = {}) {
   const headers = { "Content-Type": "application/json" };
   if (_token) headers["Authorization"] = `Bearer ${_token}`;
 
-  const resp = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { ...headers, ...(options.headers || {}) },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let resp;
 
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw { status: resp.status, message: data.error || "Request failed" };
+  try {
+    resp = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: { ...headers, ...(options.headers || {}) },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (error) {
+    console.error("TrackEd API network/CORS failure:", {
+      url: `${API_BASE}${path}`,
+      message: error?.message || String(error),
+    });
+    throw new Error(
+      "Cannot reach the TrackEd API. Check the connection, WebView CORS restrictions, or hosting security challenge."
+    );
+  }
+
+  const contentType = resp.headers.get("content-type") || "";
+  const text = await resp.text();
+
+  if (!contentType.includes("application/json")) {
+    console.error("TrackEd API returned non-JSON:", {
+      url: `${API_BASE}${path}`,
+      status: resp.status,
+      contentType,
+      responsePreview: text.slice(0, 250),
+    });
+    throw new Error(
+      `TrackEd API returned an unexpected response (HTTP ${resp.status}).`
+    );
+  }
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("TrackEd API returned invalid JSON.");
+  }
+
+  if (!resp.ok) {
+    throw new Error(data.error || `API request failed (HTTP ${resp.status}).`);
+  }
+
   return data;
+}
+
+async function checkApiAvailability() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${API_BASE}/`, { method: "GET", signal: controller.signal });
+    return response.ok;
+  } catch (error) {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 const api = {
   // ── Token ─────────────────────────────────────────────────────────────────
   setToken(t) {
     _token = t;
-    if (t) localStorage.setItem("sg_token", t);
-    else    localStorage.removeItem("sg_token");
+    if (t) sessionStorage.setItem("sg_token", t);
+    else    sessionStorage.removeItem("sg_token");
   },
   getToken() { return _token; },
 
@@ -44,6 +93,16 @@ const api = {
 
   async forgotPassword(email) {
     return apiFetch("/auth/forgot-password", { method: "POST", body: { email } });
+  },
+  registerTeacher(data) {
+    return apiFetch("/pending-teachers", { method: "POST", body: data });
+  },
+  getPendingTeachers() { return apiFetch("/pending-teachers"); },
+  approveTeacher(id) {
+    return apiFetch(`/pending-teachers/${id}/approve`, { method: "POST" });
+  },
+  rejectTeacher(id) {
+    return apiFetch(`/pending-teachers/${id}/reject`, { method: "POST" });
   },
 
   // ── Me ────────────────────────────────────────────────────────────────────
@@ -86,6 +145,7 @@ const api = {
   // ── Messages ──────────────────────────────────────────────────────────────
   getMessages()       { return apiFetch("/messages"); },
   sendMessage(data)   { return apiFetch("/messages", { method:"POST", body: data }); },
+  createTelegramLink(){ return apiFetch("/messages/telegram-link", { method:"POST", body:{} }); },
   markRead(id)        { return apiFetch(`/messages/${id}/read`, { method:"PATCH" }); },
 
   // ── Announcements ─────────────────────────────────────────────────────────
@@ -94,9 +154,14 @@ const api = {
   updateAnnouncement(id,d){ return apiFetch(`/announcements/${id}`, { method:"PUT",  body: d    }); },
   deleteAnnouncement(id)  { return apiFetch(`/announcements/${id}`, { method:"DELETE"           }); },
 
+  // ── Assignments ───────────────────────────────────────────────────────────
+  getAssignments()     { return apiFetch("/assignments"); },
+  addAssignment(data)  { return apiFetch("/assignments", { method:"POST", body:data }); },
+
   // ── Notifications ─────────────────────────────────────────────────────────
   getNotifications()       { return apiFetch("/notifications"); },
   markNotificationsRead()  { return apiFetch("/notifications/mark-read", { method:"POST" }); },
+  getPendingTeachers()     { return apiFetch("/pending-teachers"); },
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
   getDashboard() { return apiFetch("/dashboard"); },
@@ -107,7 +172,7 @@ const api = {
 
 async function syncStateFromAPI() {
   try {
-    const [students, teachers, parents, classes, grades, attendance, messages, announcements, notifications] =
+    const [students, teachers, parents, classes, grades, attendance, messages, announcements, assignments, notifications, pendingTeachers] =
       await Promise.all([
         api.getStudents().catch(() => null),
         api.getTeachers().catch(() => null),
@@ -117,18 +182,31 @@ async function syncStateFromAPI() {
         api.getAttendance().catch(() => null),
         api.getMessages().catch(() => null),
         api.getAnnouncements().catch(() => null),
+        api.getAssignments().catch(() => null),
         api.getNotifications().catch(() => null),
+        api.getPendingTeachers().catch(() => null),
       ]);
 
     if (students)      STATE.students      = _mapStudents(students);
     if (teachers)      STATE.teachers      = _mapTeachers(teachers);
     if (parents)       STATE.parents       = _mapParents(parents);
     if (classes)       STATE.classes       = _mapClasses(classes);
-    if (grades)        STATE.grades        = grades;
-    if (attendance)    STATE.attendance    = attendance;
+    if (grades)        STATE.grades        = _presentationGrades(grades);
+    if (attendance) {
+      STATE.attendance = Object.fromEntries(Object.entries(attendance).map(([studentId, record]) => {
+        const { days, ...totals } = record;
+        return [studentId, totals];
+      }));
+      STATE.attendanceDays = Object.fromEntries(Object.entries(attendance).map(([studentId, record]) => [studentId, record.days || {}]));
+    }
     if (messages)      STATE.messages      = _mapMessages(messages);
     if (announcements) STATE.announcements = _mapAnnouncements(announcements);
+    if (assignments) STATE.assignments = _mapAssignments(assignments);
     if (notifications) STATE.notifications = _mapNotifications(notifications);
+    if (pendingTeachers) STATE.pendingTeachers = pendingTeachers.map(t => ({
+      id: t.id, name: t.name, email: t.email, phone: t.phone,
+      grade: t.grade, section: t.section, appliedDate: t.applied_date, status: t.status,
+    }));
 
     console.log("[TrackEd] STATE synced from API ✓");
   } catch (err) {
@@ -140,7 +218,7 @@ async function syncStateFromAPI() {
 
 function _mapStudents(rows) {
   return rows.map(s => ({
-    id: s.id, name: s.name, grade: s.grade, section: s.section,
+    id: s.id, lrn: s.lrn || '', name: s.name, grade: s.grade, section: s.section,
     gender: s.gender, parent: s.parent_name || s.parent || "",
     parentEmail: s.parent_email || s.parentEmail || "",
     parentId: s.parent_id || s.parentId || "",
@@ -196,11 +274,38 @@ function _mapAnnouncements(rows) {
   }));
 }
 
+function _mapAssignments(rows) {
+  return rows.map(assignment => ({
+    id: assignment.id,
+    title: assignment.title,
+    subject: assignment.subject,
+    description: assignment.description,
+    assignmentDate: assignment.assignment_date || assignment.assignmentDate,
+    dueDate: assignment.due_date || assignment.dueDate || null,
+    grade: assignment.grade,
+    section: assignment.section,
+    author: assignment.author,
+  }));
+}
+
 function _mapNotifications(rows) {
   return rows.map(n => ({
     id: n.id, title: n.title, body: n.body,
     time: n.time, type: n.type, read: Boolean(n.read),
   }));
+}
+
+function _presentationGrades(grades) {
+  return Object.fromEntries(Object.entries(grades || {}).map(([studentId, subjects]) => [
+    studentId,
+    Object.fromEntries(Object.entries(subjects || {}).map(([subject, scores]) => [
+      subject,
+      (Array.isArray(scores) ? scores : []).map(score => {
+        const value = Number(score);
+        return Number.isFinite(value) && value >= 0 && value <= 100 ? value : 0;
+      }),
+    ])),
+  ]));
 }
 
 // ── API-backed overrides for STATE mutations ─────────────────────────────────
@@ -212,19 +317,24 @@ function patchScriptWithAPI() {
   // ── Students ──────────────────────────────────────────────────────────────
   window._orig_saveStudent = window.saveStudent;
   window.saveStudent = async function() {
+    const isTeacher = STATE.currentUser?.role === "teacher";
     const fn  = document.getElementById("sf-fn")?.value.trim();
     const ln  = document.getElementById("sf-ln")?.value.trim();
-    const gr  = document.getElementById("sf-gr")?.value;
-    const sec = document.getElementById("sf-sec")?.value.trim();
+    const gr  = isTeacher ? STATE.currentUser.grade : document.getElementById("sf-gr")?.value;
+    const sec = isTeacher ? STATE.currentUser.section : document.getElementById("sf-sec")?.value.trim();
+    const lrn = document.getElementById("sf-lrn")?.value.trim();
     const gen = document.getElementById("sf-gen")?.value;
     const st  = document.getElementById("sf-st")?.value;
     const par = document.getElementById("sf-par")?.value.trim();
     const pe  = document.getElementById("sf-pe")?.value.trim();
     const con = document.getElementById("sf-con")?.value.trim();
-    if (!fn || !ln || !sec || !par || !con) { toast("Please fill all required fields.", "error"); return; }
+    if (!fn || !ln || !gr || !sec || !gen || !par || !con) {
+      toast("Please fill all required fields and make sure your class is assigned.", "error");
+      return;
+    }
     try {
       const s = await api.addStudent({ name:`${fn} ${ln}`, grade:gr, section:sec, gender:gen,
-        status:st, parent:par, parentEmail:pe||"", contact:con });
+        lrn:lrn||null, status:st, parent:par, parentEmail:pe||"", contact:con });
       STATE.students.push(_mapStudents([s])[0]);
       closeModal();
       toast(`Student "${fn} ${ln}" added!`);
@@ -278,11 +388,12 @@ function patchScriptWithAPI() {
     const ln  = document.getElementById("tf-ln")?.value.trim();
     const em  = document.getElementById("tf-em")?.value.trim();
     const ph  = document.getElementById("tf-ph")?.value.trim();
+    const pw  = document.getElementById("tf-pw")?.value.trim();
     const gr  = document.getElementById("tf-gr")?.value;
     const sec = document.getElementById("tf-sec")?.value.trim();
-    if (!fn || !ln || !em || !sec) { toast("Please fill all required fields.", "error"); return; }
+    if (!fn || !ln || !em || !sec || !pw) { toast("Please fill all required fields.", "error"); return; }
     try {
-      const t = await api.addTeacher({ name:`${ti} ${fn} ${ln}`, email:em, phone:ph||"", grade:gr, section:sec });
+      const t = await api.addTeacher({ name:`${ti} ${fn} ${ln}`, email:em, phone:ph||"", password:pw, grade:gr, section:sec });
       STATE.teachers.push(_mapTeachers([t])[0]);
       closeModal(); toast(`Teacher "${ti} ${fn} ${ln}" added!`);
       if (typeof window.refreshTeacherRows === "function") window.refreshTeacherRows();
@@ -330,10 +441,11 @@ function patchScriptWithAPI() {
     const name  = document.getElementById("pf-name")?.value.trim();
     const email = document.getElementById("pf-email")?.value.trim();
     const phone = document.getElementById("pf-phone")?.value.trim();
+    const password = document.getElementById("pf-pass")?.value.trim();
     const child = document.getElementById("pf-child")?.value;
-    if (!name || !email) { toast("Name and email are required.", "error"); return; }
+    if (!name || !email || !password) { toast("Name, email, and password are required.", "error"); return; }
     try {
-      const p = await api.addParent({ name, email, phone:phone||"—", childId:child||null });
+      const p = await api.addParent({ name, email, password, phone:phone||"—", childId:child||null });
       STATE.parents.push(_mapParents([p])[0]);
       closeModal(); toast(`Parent ${name} added.`);
       if (typeof window.refreshParentRows === "function") window.refreshParentRows();
@@ -461,9 +573,9 @@ function patchScriptWithAPI() {
   window.saveGrades = async function() {
     try {
       await api.bulkUpdateGrades(STATE.grades);
-      toast("Grades saved to server! ✓");
+      if (typeof window._orig_saveGrades === "function") window._orig_saveGrades();
     } catch(e) {
-      toast("Saved locally (API offline).", "info");
+      toast(e.message || "Grades could not be saved. Check your connection and try again.", "error");
     }
   };
 

@@ -1,6 +1,6 @@
 {
-    "name": "smartgrade_app",
-    "short_name": "smartgrade_app",
+    "name": "TrackEd",
+    "short_name": "TrackEd",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
