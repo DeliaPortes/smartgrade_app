@@ -408,27 +408,6 @@ function toast(msg, type='success'){
   setTimeout(()=>t.remove(), 3200);
 }
 
-function downloadToast(filename, uri, notificationsEnabled){
-  const item=document.createElement('div');
-  item.className='toast toast-success';
-  const message=document.createElement('span');
-  const location=uri&&uri.startsWith('content://')?'Downloads':'your device';
-  message.textContent=notificationsEnabled
-    ? `${filename} saved to ${location}.`
-    : `${filename} saved to ${location}. Turn on TrackEd notifications to see download alerts.`;
-  item.appendChild(message);
-  if(uri && uri.startsWith('content://') && window.TrackEdOpenDownload){
-    const open=document.createElement('button');
-    open.type='button';
-    open.className='download-open-btn';
-    open.textContent='Open / Share';
-    open.onclick=()=>window.TrackEdOpenDownload.postMessage(JSON.stringify({filename,uri}));
-    item.appendChild(open);
-  }
-  document.getElementById('toast-container').appendChild(item);
-  setTimeout(()=>item.remove(),10000);
-}
-
 function showConfirm(title, msg, onYes){
   const ov = document.createElement('div');
   ov.className = 'confirm-overlay';
@@ -1284,7 +1263,7 @@ function pgStudents(el){
     ${isTeacher?`<div class="page-actions">
       <button class="btn btn-secondary" onclick="exportStudents()">Export</button>
       <label class="btn btn-secondary" for="student-csv-file">Import</label>
-      <input id="student-csv-file" type="file" accept=".csv,text/csv" hidden onchange="importStudentsCsv(this)">
+      <input id="student-csv-file" type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onchange="importStudentsSpreadsheet(this)">
       <button class="btn btn-primary" onclick="openAddStudentModal()">+ Add Student</button>
     </div>`:''}
   </div>
@@ -1439,7 +1418,6 @@ function downloadCsv(filename, rows){
   link.href=url; link.download=filename; link.style.display='none';
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  toast(`${filename} downloaded!`);
 }
 
 function parseCsv(text){
@@ -1464,12 +1442,31 @@ function parseCsv(text){
   return rows;
 }
 
-async function importStudentsCsv(input){
+async function readSpreadsheetRows(file){
+  const extension=file.name.split('.').pop()?.toLowerCase();
+  if(extension==='csv'){
+    return parseCsv((await file.text()).replace(/^\uFEFF/,''));
+  }
+  if(!['xls','xlsx'].includes(extension)){
+    throw new Error('Choose an Excel (.xlsx or .xls) or CSV file.');
+  }
+  if(!window.XLSX){
+    throw new Error('Excel import is unavailable. Please update the app and try again.');
+  }
+  const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array'});
+  const firstSheet=workbook.Sheets[workbook.SheetNames[0]];
+  if(!firstSheet) throw new Error('The Excel file has no worksheets.');
+  return window.XLSX.utils.sheet_to_json(firstSheet,{
+    header:1,raw:false,defval:'',blankrows:false,
+  }).map(row=>row.map(cell=>String(cell??'')));
+}
+
+async function importStudentsSpreadsheet(input){
   const file=input.files?.[0];
   input.value='';
   if(!file) return;
   try{
-    const rows=parseCsv((await file.text()).replace(/^\uFEFF/,''));
+    const rows=await readSpreadsheetRows(file);
     if(rows.length<2) throw new Error('The spreadsheet has no student rows.');
     const headers=rows[0].map(header=>header.trim().toLowerCase());
     const column=name=>headers.indexOf(name.toLowerCase());
@@ -1623,11 +1620,10 @@ function downloadPdf(filename, title, headers, rows){
   link.href=url; link.download=filename; link.style.display='none';
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  toast(`${title} PDF downloaded!`);
 }
 
-window.handleNativeDownloadResult=function(success,filename,uri,notificationsEnabled){
-  if(success){ downloadToast(filename,uri,notificationsEnabled); return; }
+window.handleNativeDownloadResult=function(success,filename){
+  if(success) return;
   toast(`${filename} could not be saved. Check device storage and try again.`,'error');
 };
 
@@ -3632,21 +3628,38 @@ function pgApprovals(el){
 function pgParentsTeacher(el){
   const u = STATE.currentUser;
   const myStudents = STATE.students.filter(s=>s.section===u.section&&s.grade===u.grade);
+  const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,character=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
+  }[character]));
 
   function renderRows(){
     const myParents = STATE.parents.filter(p=>p.children.some(cid=>myStudents.some(s=>s.id===cid)));
-    document.getElementById('par-tbody').innerHTML = myParents.length===0
+    const tbody=document.getElementById('par-tbody');
+    if(!tbody) return;
+    tbody.innerHTML = myParents.length===0
       ? `<tr><td colspan="5"><div class="empty-state"><div class="es-icon">👨‍👩‍👧</div><div class="es-title">No parents yet</div></div></td></tr>`
       : myParents.map(p=>{
-          const child = STATE.students.find(s=>myStudents.includes(s) && p.children.includes(s.id));
-          const hasAccount = Object.values(STATE.users).some(u2=>u2.email===p.email);
+          const children = myStudents.filter(s=>(p.children||[]).includes(s.id));
           return `<tr>
-            <td><div class="flex aic gap-10"><div class="av av-32 av-amber">${ini(p.name)}</div><div><div class="fw6">${p.name}</div><div class="txs tmm">${p.id}</div></div></div></td>
-            <td>${p.email}</td><td>${p.phone}</td>
-            <td>${child?`<span class="badge bg-blue">${child.name}</span>`:'<span class="badge bg-gray">—</span>'}</td>
-            <td>${hasAccount?'<span class="badge bg-green">Has Account</span>':'<span class="badge bg-amber">No Account</span>'}</td>
+            <td><div class="flex aic gap-10"><div class="av av-32 av-amber">${escapeHtml(ini(p.name))}</div><div><div class="fw6">${escapeHtml(p.name)}</div><div class="txs tmm">${escapeHtml(p.id)}</div></div></div></td>
+            <td>${escapeHtml(p.email)}</td><td>${escapeHtml(p.phone||'—')}</td>
+            <td>${children.map(child=>`<span class="badge bg-blue">${escapeHtml(child.name)}</span>`).join(' ')||'<span class="badge bg-gray">—</span>'}</td>
+            <td><div class="flex gap-6">
+              <button class="btn btn-secondary btn-xs" type="button" data-parent-action="view" data-parent-id="${escapeHtml(p.id)}">View</button>
+              <button class="btn btn-secondary btn-xs" type="button" data-parent-action="edit" data-parent-id="${escapeHtml(p.id)}">Edit</button>
+              <button class="btn btn-danger btn-xs" type="button" data-parent-action="delete" data-parent-id="${escapeHtml(p.id)}">Delete</button>
+            </div></td>
           </tr>`;
         }).join('');
+    tbody.onclick=event=>{
+      const button=event.target.closest('[data-parent-action]');
+      if(!button) return;
+      const parent=STATE.parents.find(item=>item.id===button.dataset.parentId);
+      if(!parent) return;
+      if(button.dataset.parentAction==='view') openViewParent(parent);
+      if(button.dataset.parentAction==='edit') openEditParent(parent);
+      if(button.dataset.parentAction==='delete') deleteTeacherParent(parent);
+    };
   }
 
   el.innerHTML = `
@@ -3655,18 +3668,95 @@ function pgParentsTeacher(el){
     <div class="page-actions">
       <button class="btn btn-secondary" onclick="exportParents()">Export</button>
       <label class="btn btn-secondary" for="parent-csv-file">Import</label>
-      <input id="parent-csv-file" type="file" accept=".csv,text/csv" hidden onchange="importParentsCsv(this)">
+      <input id="parent-csv-file" type="file" accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onchange="importParentsSpreadsheet(this)">
       <button class="btn btn-primary" onclick="openAddParentTeacherModal()">+ Add Parent</button>
     </div>
   </div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>Parent/Guardian</th><th>Email</th><th>Phone</th><th>Child</th><th>Account</th></tr></thead>
+      <thead><tr><th>Parent/Guardian</th><th>Email</th><th>Phone</th><th>Child</th><th>Actions</th></tr></thead>
       <tbody id="par-tbody"></tbody>
     </table>
   </div>`;
   window.refreshParentRowsTeacher = renderRows;
   renderRows();
+
+  function openViewParent(parent){
+    const children=myStudents.filter(student=>(parent.children||[]).includes(student.id));
+    openModal(`
+      <div class="modal-header"><div class="modal-title">Parent Information</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <p><strong>Full name:</strong> ${escapeHtml(parent.name)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(parent.email)}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(parent.phone||'—')}</p>
+        <p><strong>Linked student${children.length===1?'':'s'}:</strong> ${children.map(student=>escapeHtml(student.name)).join(', ')||'—'}</p>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
+  }
+
+  function openEditParent(parent){
+    openModal(`
+      <div class="modal-header"><div class="modal-title">Edit Parent</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid form-row-2">
+          <div class="fg"><label for="teacher-parent-name">Full Name*</label><input id="teacher-parent-name" value="${escapeHtml(parent.name)}"></div>
+          <div class="fg"><label for="teacher-parent-email">Email*</label><input id="teacher-parent-email" type="email" value="${escapeHtml(parent.email)}"></div>
+          <div class="fg"><label for="teacher-parent-phone">Phone</label><input id="teacher-parent-phone" value="${escapeHtml(parent.phone||'')}"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-teacher-parent">Save</button>
+      </div>`);
+    document.getElementById('save-teacher-parent').onclick=async()=>{
+      const name=document.getElementById('teacher-parent-name')?.value.trim();
+      const email=document.getElementById('teacher-parent-email')?.value.trim();
+      const phone=document.getElementById('teacher-parent-phone')?.value.trim()||'';
+      if(!name||!email){toast('Name and email are required.','error');return;}
+      try{
+        const updated=typeof api!=='undefined'&&api.getToken()
+          ? await api.updateParent(parent.id,{name,email,phone})
+          : {...parent,name,email,phone};
+        Object.assign(parent,{name:updated.name,email:updated.email,phone:updated.phone});
+        STATE.students.forEach(student=>{
+          if((parent.children||[]).includes(student.id)){
+            student.parent=name;
+            student.parentEmail=email;
+          }
+        });
+        closeModal();
+        toast('Parent information updated.');
+        renderRows();
+      }catch(error){
+        toast(error.message||'Parent information could not be updated.','error');
+      }
+    };
+  }
+
+  function deleteTeacherParent(parent){
+    showConfirm('Delete Parent',`Remove <strong>${escapeHtml(parent.name)}</strong> from your class? If linked to another teacher's students, their account and records will remain.`,async()=>{
+      try{
+        const result=typeof api!=='undefined'&&api.getToken()
+          ? await api.deleteParent(parent.id)
+          : {deleted:true};
+        STATE.parents=STATE.parents.filter(item=>item.id!==parent.id);
+        if(result.deleted!==false){
+          STATE.users=Object.fromEntries(Object.entries(STATE.users).filter(([,user])=>user.id!==parent.id));
+        }
+        STATE.students.forEach(student=>{
+          if((parent.children||[]).includes(student.id)){
+            student.parentId='';
+            student.parent='';
+            student.parentEmail='';
+          }
+        });
+        toast(result.deleted===false?'Parent unlinked from your class.':'Parent deleted.');
+        renderRows();
+      }catch(error){
+        toast(error.message||'Parent could not be deleted.','error');
+      }
+    });
+  }
 }
 
 function openAddParentTeacherModal(){
@@ -3692,23 +3782,36 @@ function openAddParentTeacherModal(){
   <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveParentTeacher()">Add Parent</button></div>`);
 }
 
-function saveParentTeacher(){
+async function saveParentTeacher(){
   const name = document.getElementById('pt-name')?.value.trim();
   const email = document.getElementById('pt-email')?.value.trim();
   const phone = document.getElementById('pt-phone')?.value.trim();
   const pass = document.getElementById('pt-pass')?.value.trim();
   const childId = document.getElementById('pt-child')?.value;
   if(!name||!email||!phone||!childId||!pass){ toast('Fill all required fields.','error'); return; }
-  if(Object.values(STATE.users).some(u=>u.email===email)){ toast('This email already has an account.','error'); return; }
-  if(!STATE.nextParentId) STATE.nextParentId = STATE.parents.length+1;
-  const id = 'P'+String(STATE.nextParentId++).padStart(3,'0');
-  STATE.parents.push({id,name,email,phone,children:[childId]});
-  STATE.users[id] = {role:'parent',id,name,email,password:pass,childId};
-  const student = STATE.students.find(s=>s.id===childId);
-  if(student){ student.parentId=id; student.parent=name; student.parentEmail=email; }
-  closeModal();
-  toast(`✓ Parent ${name} added! Login: ${email} / ${pass}`);
-  if(typeof window.refreshParentRowsTeacher==='function') window.refreshParentRowsTeacher();
+  if(STATE.parents.some(parent=>parent.email.toLowerCase()===email.toLowerCase())||
+    Object.values(STATE.users).some(user=>user.email.toLowerCase()===email.toLowerCase())){
+    toast('This email already has a parent record or account.','error'); return;
+  }
+  try{
+    let parent;
+    if(typeof api!=='undefined'&&api.getToken()){
+      const created=await api.addParent({name,email,phone,password:pass,childId});
+      parent={id:created.id,name:created.name,email:created.email,phone:created.phone,children:created.children||[childId]};
+    }else{
+      if(!STATE.nextParentId) STATE.nextParentId = STATE.parents.length+1;
+      parent={id:'P'+String(STATE.nextParentId++).padStart(3,'0'),name,email,phone,children:[childId]};
+      STATE.users[parent.id]={role:'parent',id:parent.id,name,email,password:pass,childId};
+    }
+    STATE.parents.push(parent);
+    const student=STATE.students.find(item=>item.id===childId);
+    if(student){student.parentId=parent.id;student.parent=name;student.parentEmail=email;}
+    closeModal();
+    toast(`Parent ${name} created. Share the login details securely.`);
+    if(typeof window.refreshParentRowsTeacher==='function') window.refreshParentRowsTeacher();
+  }catch(error){
+    toast(error.message||'Parent could not be created.','error');
+  }
 }
 
 function exportParents(){
@@ -3723,14 +3826,14 @@ function exportParents(){
   downloadCsv('parents.csv',rows);
 }
 
-async function importParentsCsv(input){
+async function importParentsSpreadsheet(input){
   const file=input.files?.[0];
   input.value='';
   if(!file) return;
   const teacher=STATE.currentUser;
   const classStudents=STATE.students.filter(student=>student.grade===teacher.grade&&student.section===teacher.section);
   try{
-    const rows=parseCsv((await file.text()).replace(/^\uFEFF/,''));
+    const rows=await readSpreadsheetRows(file);
     if(rows.length<2) throw new Error('The spreadsheet has no parent rows.');
     const headers=rows[0].map(header=>header.trim().toLowerCase());
     const column=name=>headers.indexOf(name.toLowerCase());

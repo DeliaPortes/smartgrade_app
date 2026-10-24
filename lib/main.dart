@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
@@ -77,6 +76,27 @@ class _TrackEdWebViewState extends State<TrackEdWebView> {
 
     if (controller.platform is AndroidWebViewController) {
       final androidController = controller.platform as AndroidWebViewController;
+
+      androidController.setOnShowFileSelector((params) async {
+        final isImage = params.acceptTypes.any(
+          (type) => type.startsWith('image/'),
+        );
+        try {
+          final files = await FilePicker.pickFiles(
+            type: isImage ? FileType.image : FileType.custom,
+            allowedExtensions: isImage ? null : ['csv', 'xls', 'xlsx'],
+            dialogTitle: isImage ? 'Select profile picture' : 'Select file',
+          );
+          final path = files.isEmpty ? null : files.first.path;
+          return path == null ? <String>[] : [Uri.file(path).toString()];
+        } catch (error) {
+          debugPrint('TrackEd file selection failed: $error');
+          await controller.runJavaScript(
+            "if (typeof toast === 'function') toast('Could not open the file picker. Please try again.', 'error');",
+          );
+          return <String>[];
+        }
+      });
 
       androidController.setOnConsoleMessage((message) {
         debugPrint('TrackEd WebView Console: ${message.message}');

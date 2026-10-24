@@ -4,7 +4,7 @@
  * Falls back gracefully if the backend is offline (uses STATE data).
  */
 
-const API_BASE = "https://tracked.infinityfree.io/api";
+const API_BASE = "https://tracked-app-api.vercel.app/api";
 
 let _token = sessionStorage.getItem("sg_token") || null;
 

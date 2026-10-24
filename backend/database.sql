@@ -254,5 +254,14 @@ INSERT INTO notifications (title,body,time,type,is_read,role) VALUES
 -- (hash below is a real, verified bcrypt hash, compatible with PHP's password_verify())
 INSERT INTO users (role,linked_id,email,password,name,phone,school) VALUES
 ('teacher','T001','teacher@tracked.edu','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Ms. Maria Santos','09171111111',NULL),
+('teacher','T002','preyes@tracked.edu','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mr. Pedro Reyes','09182222222',NULL),
+('teacher','T003','clim@tracked.edu','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Ms. Carmen Lim','09193333333',NULL),
 ('parent','P003','parent@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mr. Juan Dela Cruz',NULL,NULL),
+('parent','P004','rsantos@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mrs. Rosa Santos','09204567890',NULL),
+('parent','P005','alim@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Ms. Aileen Lim','09215678901',NULL),
+('parent','P006','btorres@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mr. Bobby Torres','09226789012',NULL),
+('parent','P007','nramos@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mrs. Nena Ramos','09237890123',NULL),
+('parent','P008','atan@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mr. Anthony Tan','09248901234',NULL),
+('parent','P009','pcruz@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mrs. Paz Cruz','09259012345',NULL),
+('parent','P010','lbautista@gmail.com','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Mr. Leo Bautista','09260123456',NULL),
 ('admin','admin','admin@tracked.edu','$2b$12$ChuE8gTd93khXRVe/ClaluCJ8jwj6UOB/Tvp3YDhyvn0chVNqwqLW','Principal Roberto Cruz',NULL,'Polangui South Central School');

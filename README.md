@@ -38,6 +38,12 @@ Teachers can post assignments for their assigned class from **Assignments**. Par
 
 A new Flutter project.
 
+## Demo login accounts
+
+Fresh database installs include the demo teacher accounts for Grades 1–3 and parent accounts linked to the sample students. All demo accounts use `password123`.
+
+To add the Grade 2/3 teacher and parent demo accounts to a database that was already initialized, run `backend/migrations/20261024_demo_login_accounts.sql` once in MySQL Workbench. The migration skips accounts that already exist.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
