@@ -10,6 +10,7 @@ function send_cors_headers() {
         'http://localhost',
         'http://127.0.0.1',
         'https://tracked.infinityfree.io',
+        'https://tracked.freedev.app',
     ];
     $isLocalDevelopmentOrigin = (bool) preg_match('/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin);
     if (in_array($origin, $allowedOrigins, true) || $isLocalDevelopmentOrigin) {
