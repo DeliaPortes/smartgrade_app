@@ -24,9 +24,9 @@ function handle_pending_teachers($method, $id, $sub = null) {
         $newId = 'PT' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
         $pdo->prepare('INSERT INTO pending_teachers (id,name,email,phone,grade,section,password,applied_date,status)
-            VALUES (?,?,?,?,?,?,?,CURDATE(),"pending")')
+            VALUES (?,?,?,?,?,?,?,CURDATE(),?)')
             ->execute([$newId, $b['name'], $b['email'], $b['phone'] ?? '', $b['grade'], $b['section'],
-                       password_hash($b['password'], PASSWORD_BCRYPT)]);
+                       password_hash($b['password'], PASSWORD_BCRYPT), 'pending']);
 
         json_response(['message' => "Registration submitted! Please wait for the admin's approval."], 201);
     }
@@ -54,18 +54,18 @@ function handle_pending_teachers($method, $id, $sub = null) {
             $teacherId = 'T' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
             $pdo->prepare('INSERT INTO teachers (id,name,email,phone,grade,section,subjects,status,joined)
-                VALUES (?,?,?,?,?,?,"All Subjects","active",CURDATE())')
-                ->execute([$teacherId, $pending['name'], $pending['email'], $pending['phone'], $pending['grade'], $pending['section']]);
+                VALUES (?,?,?,?,?,?,?,?,CURDATE())')
+                ->execute([$teacherId, $pending['name'], $pending['email'], $pending['phone'], $pending['grade'], $pending['section'], 'All Subjects', 'active']);
 
-            $pdo->prepare('INSERT INTO users (role,linked_id,email,password,name,phone) VALUES ("teacher",?,?,?,?,?)')
-                ->execute([$teacherId, $pending['email'], $pending['password'], $pending['name'], $pending['phone']]);
+            $pdo->prepare('INSERT INTO users (role,linked_id,email,password,name,phone) VALUES (?,?,?,?,?,?)')
+                ->execute(['teacher', $teacherId, $pending['email'], $pending['password'], $pending['name'], $pending['phone']]);
 
-            $pdo->prepare('UPDATE pending_teachers SET status = "approved" WHERE id = ?')->execute([$id]);
+            $pdo->prepare('UPDATE pending_teachers SET status = ? WHERE id = ?')->execute(['approved', $id]);
             json_response(['message' => $pending['name'] . ' approved and can now log in!']);
         }
 
         if ($action === 'reject') {
-            $pdo->prepare('UPDATE pending_teachers SET status = "rejected" WHERE id = ?')->execute([$id]);
+            $pdo->prepare('UPDATE pending_teachers SET status = ? WHERE id = ?')->execute(['rejected', $id]);
             json_response(['message' => $pending['name'] . '\'s application rejected.']);
         }
 
