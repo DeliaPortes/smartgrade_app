@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+.phpunit.cache
+.phpunit.result.cache
+/vendor
+/node_modules
+/public/build
+/storage/logs/*
+/database/*.sqlite
+firebase-service-account.json
+tracked-firebase-service-account.json
