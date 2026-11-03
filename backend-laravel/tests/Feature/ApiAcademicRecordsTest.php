@@ -297,7 +297,7 @@ class ApiAcademicRecordsTest extends TestCase
         $this->seedClassroom();
         $this->postJson('/api/pending-teachers', [
             'name' => 'New Teacher',
-            'email' => 'newteacher@example.test',
+            'email' => 'NewTeacher@Example.Test',
             'password' => 'teacher-password',
             'grade' => 'Grade 2',
             'section' => 'Rosal',
@@ -306,6 +306,7 @@ class ApiAcademicRecordsTest extends TestCase
             ->assertJsonStructure(['message']);
 
         $pending = DB::table('pending_teachers')->first();
+        $this->assertSame('newteacher@example.test', $pending->email);
         $this->assertTrue(password_verify('teacher-password', $pending->password));
 
         $admin = $this->makeUser('admin', 'A001', 'admin@example.test');
@@ -326,6 +327,12 @@ class ApiAcademicRecordsTest extends TestCase
             'id' => $pending->id,
             'status' => 'approved',
         ]);
+
+        Auth::forgetGuards();
+        $this->postJson('/api/pending-teachers/'.$pending->id.'/approve', [], $this->auth($admin))
+            ->assertNotFound();
+        $this->assertDatabaseCount('teachers', 3);
+        $this->assertDatabaseCount('users', 2);
     }
 
     private function seedClassroom(): void

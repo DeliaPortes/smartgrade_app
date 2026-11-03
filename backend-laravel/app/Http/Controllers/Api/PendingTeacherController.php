@@ -15,6 +15,11 @@ class PendingTeacherController extends Controller
 {
     public function store(Request $request, StudentAccess $ids): JsonResponse
     {
+        $email = $request->input('email');
+        if (is_string($email)) {
+            $request->merge(['email' => mb_strtolower(trim($email))]);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'email' => [
@@ -34,7 +39,7 @@ class PendingTeacherController extends Controller
         DB::table('pending_teachers')->insert([
             'id' => $id,
             'name' => $data['name'],
-            'email' => mb_strtolower($data['email']),
+            'email' => $data['email'],
             'phone' => $data['phone'] ?? '',
             'grade' => $data['grade'],
             'section' => $data['section'],
