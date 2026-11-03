@@ -3646,20 +3646,22 @@ function pgApprovals(el){
       ${approved.map(t=>`<div class="flex aic gap-10" style="padding:8px 0;border-bottom:1px solid var(--border)"><span class="badge bg-green">Approved</span><div class="f1 fw6 ts">${t.name}</div><div class="txs tmm">${t.grade} – ${t.section}</div></div>`).join('')}
     </div>`:''}`;
   }
-  window.approveTeacher = (id)=>{
-    const t = STATE.pendingTeachers.find(x=>x.id===id); if(!t) return;
-    const tid = 'T'+String(STATE.nextTeacherId++).padStart(3,'0');
-    STATE.teachers.push({id:tid,name:t.name,email:t.email,phone:t.phone,grade:t.grade,section:t.section,subjects:'All Subjects',status:'active',joined:new Date().toISOString().split('T')[0],password:t.password});
-    STATE.users[tid] = {role:'teacher',id:tid,name:t.name,email:t.email,password:t.password,grade:t.grade,section:t.section,teacherId:tid};
-    t.status='approved';
-    toast(`${t.name} approved and can now log in!`); render();
-  };
-  window.rejectTeacher = (id,name)=>{
-    showConfirm('Reject Application',`Reject application from <strong>${name}</strong>?`,()=>{
-      const t = STATE.pendingTeachers.find(x=>x.id===id); if(t) t.status='rejected';
-      toast(`${name}'s application rejected.`,'error'); render();
-    });
-  };
+  if (!window._trackedApiApprovalEnabled) {
+    window.approveTeacher = (id)=>{
+      const t = STATE.pendingTeachers.find(x=>x.id===id); if(!t) return;
+      const tid = 'T'+String(STATE.nextTeacherId++).padStart(3,'0');
+      STATE.teachers.push({id:tid,name:t.name,email:t.email,phone:t.phone,grade:t.grade,section:t.section,subjects:'All Subjects',status:'active',joined:new Date().toISOString().split('T')[0],password:t.password});
+      STATE.users[tid] = {role:'teacher',id:tid,name:t.name,email:t.email,password:t.password,grade:t.grade,section:t.section,teacherId:tid};
+      t.status='approved';
+      toast(`${t.name} approved and can now log in!`); render();
+    };
+    window.rejectTeacher = (id,name)=>{
+      showConfirm('Reject Application',`Reject application from <strong>${name}</strong>?`,()=>{
+        const t = STATE.pendingTeachers.find(x=>x.id===id); if(t) t.status='rejected';
+        toast(`${name}'s application rejected.`,'error'); render();
+      });
+    };
+  }
   render();
 }
 

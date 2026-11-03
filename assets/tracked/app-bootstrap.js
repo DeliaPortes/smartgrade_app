@@ -7,9 +7,9 @@
 
 // ── API-backed login ─────────────────────────────────────────────────────────
 window.doLogin = async function() {
-  const email    = document.getElementById("l-email").value.trim();
-  const password = document.getElementById("l-pass").value.trim();
-  if (!email || !password) { toast("Email and password are required.", "error"); return; }
+  const email    = document.getElementById("l-email").value.trim().toLowerCase();
+  const password = document.getElementById("l-pass").value;
+  if (!email || !password.trim()) { toast("Email and password are required.", "error"); return; }
 
   const btn = document.querySelector(".login-cta");
   if (btn) { btn.textContent = "Signing in…"; btn.disabled = true; }
@@ -108,13 +108,13 @@ setInterval(async () => {
 window.doRegisterTeacher = async function() {
   const data = {
     name: document.getElementById("r-name")?.value.trim(),
-    email: document.getElementById("r-email")?.value.trim(),
-    password: document.getElementById("r-pass")?.value.trim(),
+    email: document.getElementById("r-email")?.value.trim().toLowerCase(),
+    password: document.getElementById("r-pass")?.value,
     phone: document.getElementById("r-phone")?.value.trim() || "",
     grade: document.getElementById("r-grade")?.value,
     section: document.getElementById("r-section")?.value.trim(),
   };
-  if (!data.name || !data.email || !data.password || !data.grade || !data.section) {
+  if (!data.name || !data.email || !data.password.trim() || !data.grade || !data.section) {
     toast("Please fill all required fields.", "error");
     return;
   }
@@ -203,7 +203,8 @@ window.submitForgotPassword = async function() {
   }
 })();
 
-const originalApproveTeacher = window.approveTeacher;
+window._trackedApiApprovalEnabled = true;
+
 window.approveTeacher = async function(id) {
   try {
     const result = await api.approveTeacher(id);
@@ -216,7 +217,6 @@ window.approveTeacher = async function(id) {
   }
 };
 
-const originalRejectTeacher = window.rejectTeacher;
 window.rejectTeacher = function(id, name) {
   showConfirm("Reject Application", `Reject application from <strong>${name}</strong>?`, async () => {
     try {

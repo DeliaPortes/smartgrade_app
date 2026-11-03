@@ -902,3 +902,56 @@ html, body {
 .login-switch-link span:hover{text-decoration:underline}
 .reg-info-box{background:var(--blue-l);border-radius:var(--r);padding:12px 14px;font-size:12.5px;color:var(--blue);margin-bottom:16px;line-height:1.6}
 .reg-info-box strong{font-weight:700}
+@media (max-width: 600px) {
+  body {
+    min-height: 100dvh;
+  }
+
+  #login-page {
+    min-height: 100dvh;
+  }
+
+  .login-right {
+    min-height: 100dvh;
+    justify-content: center;
+    padding: max(20px, env(safe-area-inset-top)) 18px
+      max(20px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .login-right > .login-box {
+    transform: translateY(-10px);
+  }
+
+  #register-form-section .form-grid.form-row-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  #app {
+    min-height: 100dvh;
+  }
+
+  .topbar {
+    padding-left: max(10px, env(safe-area-inset-left)) !important;
+    padding-right: max(10px, env(safe-area-inset-right)) !important;
+  }
+
+  .content {
+    padding-bottom: max(40px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .g3,
+  .g4,
+  .profile-summary {
+    grid-template-columns: 1fr !important;
+  }
+
+  #toast-container {
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+  }
+
+  .toast {
+    width: 100%;
+  }
+}
