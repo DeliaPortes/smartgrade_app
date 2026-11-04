@@ -9,7 +9,7 @@
   --r:9px;--rl:14px;--rxl:20px;--font:'Plus Jakarta Sans',sans-serif;
 }
 body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh}
-body:not(.online-ready) #login-page{display:none}
+body:not(.online-ready) #login-page{display:grid}
 .hidden{display:none!important}
 .offline-gate{display:none;position:fixed;inset:0;z-index:5000;background:var(--bg);align-items:center;justify-content:center;padding:24px;text-align:center}
 .offline-gate.visible{display:flex}
@@ -127,6 +127,9 @@ input,select,textarea,button{font-family:var(--font)}
 .btn-primary{background:var(--green);color:#fff}.btn-primary:hover{background:var(--green-d)}
 .btn-secondary{background:var(--surface);color:var(--text);border:1.5px solid var(--border)}.btn-secondary:hover{background:var(--bg)}
 .btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#8f2020}
+.btn:disabled{opacity:.72;cursor:wait}
+.inline-spinner{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:tracked-spin .7s linear infinite;flex:0 0 auto}
+@keyframes tracked-spin{to{transform:rotate(360deg)}}
 .btn-amber{background:var(--amber);color:#fff}
 .btn-sm{padding:6px 12px;font-size:12.5px}
 .btn-xs{padding:4px 10px;font-size:11.5px}
@@ -275,6 +278,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .msg-bubble-wrap{display:flex;align-items:flex-end;gap:8px;max-width:min(82%,620px);width:fit-content}
 .msg-bubble-avatar{width:28px;height:28px;border-radius:50%;background:#DCE6FF;color:var(--green);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
 .msg-bubble-meta{font-size:10px;color:var(--text3);margin:3px 4px 0}
+.msg-delivery-status{font-weight:600;color:var(--text2)}
+.msg-delivery-status.failed{color:var(--red)}
+.msg-retry-btn{border:0;background:transparent;color:var(--green);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:0 2px}
 .msg-bubble{padding:10px 14px;border-radius:18px;box-shadow:0 1px 3px rgba(0,0,0,.08);font-size:13.5px;line-height:1.5;word-break:break-word;overflow-wrap:anywhere;white-space:normal;max-width:100%}
 .msg-bubble.incoming{background:#fff;color:var(--text);border-bottom-left-radius:5px}
 .msg-bubble.outgoing{background:var(--green);color:#fff;border-bottom-right-radius:5px}
@@ -902,6 +908,7 @@ html, body {
 .login-switch-link span:hover{text-decoration:underline}
 .reg-info-box{background:var(--blue-l);border-radius:var(--r);padding:12px 14px;font-size:12.5px;color:var(--blue);margin-bottom:16px;line-height:1.6}
 .reg-info-box strong{font-weight:700}
+
 @media (max-width: 600px) {
   body {
     min-height: 100dvh;

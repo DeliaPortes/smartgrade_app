@@ -3,10 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\PasswordResetCodeNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
@@ -43,7 +44,29 @@ class ApiAuthenticationTest extends TestCase
         $this->assertDatabaseHas('personal_access_tokens', [
             'tokenable_id' => $user->id,
             'name' => 'tracked-app',
+            'expires_at' => null,
         ]);
+    }
+
+    public function test_remember_me_creates_a_token_that_expires_after_seven_days(): void
+    {
+        $user = $this->makeUser();
+
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'remember' => true,
+        ])->assertOk()->assertJsonPath('expires_at', now()->addDays(7)->toIso8601String());
+
+        $token = DB::table('personal_access_tokens')
+            ->where('tokenable_id', $user->id)
+            ->first();
+        $this->assertNotNull($token?->expires_at);
+        $this->assertEqualsWithDelta(
+            now()->addDays(7)->timestamp,
+            strtotime($token->expires_at),
+            2
+        );
     }
 
     public function test_invalid_credentials_return_401_without_creating_a_token(): void
@@ -67,25 +90,90 @@ class ApiAuthenticationTest extends TestCase
             ->assertJsonStructure(['error', 'errors' => ['email']]);
     }
 
-    public function test_forgot_password_sends_a_reset_notification_without_disclosing_unknown_emails(): void
+    public function test_email_password_reset_requires_code_and_revokes_existing_tokens(): void
     {
         Notification::fake();
+        config(['mail.default' => 'smtp']);
         $user = $this->makeUser();
+        $sentCode = null;
+        $user->createToken('existing-device');
 
-        $this->postJson('/api/auth/forgot-password', ['email' => $user->email])
+        $this->postJson('/api/auth/forgot-password', ['email' => strtoupper($user->email)])
             ->assertOk()
             ->assertExactJson([
-                'message' => 'If an account matches that address, a password reset link will be sent.',
+                'message' => 'If an account matches that email, a verification code will be sent.',
             ]);
 
-        Notification::assertSentTo($user, ResetPassword::class);
+        Notification::assertSentOnDemand(
+            PasswordResetCodeNotification::class,
+            function (PasswordResetCodeNotification $notification, array $channels, object $notifiable) use (&$sentCode, $user): bool {
+                $sentCode = $notification->code;
+
+                return $channels === ['mail']
+                    && $notifiable->routes['mail'] === $user->email;
+            }
+        );
+        $challenge = DB::table('password_reset_verification_codes')->where('user_id', $user->id)->first();
+        $this->assertNotNull($sentCode);
+        $this->assertTrue(Hash::check($sentCode, $challenge->code_hash));
+
+        $this->postJson('/api/auth/verify-reset-code', [
+            'email' => $user->email,
+            'code' => $sentCode === '999999' ? '000000' : '999999',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('error', 'The verification code is invalid or expired. Request a new code and try again.');
+        $this->assertDatabaseHas('password_reset_verification_codes', [
+            'user_id' => $user->id,
+            'attempts' => 1,
+        ]);
+
+        $verified = $this->postJson('/api/auth/verify-reset-code', [
+            'email' => $user->email,
+            'code' => $sentCode,
+        ])->assertOk()->json('reset_token');
+
+        $this->postJson('/api/auth/reset-password', [
+            'email' => $user->email,
+            'reset_token' => $verified,
+            'password' => 'new-secure-password',
+            'password_confirmation' => 'new-secure-password',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Your password has been changed. You can now sign in with your new password.');
+
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+        $this->assertDatabaseCount('password_reset_verification_codes', 0);
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'new-secure-password',
+        ])->assertOk();
+    }
+
+    public function test_email_password_reset_does_not_send_codes_to_unknown_addresses(): void
+    {
+        Notification::fake();
+        config(['mail.default' => 'smtp']);
 
         $this->postJson('/api/auth/forgot-password', ['email' => 'missing@example.test'])
             ->assertOk()
             ->assertExactJson([
-                'message' => 'If an account matches that address, a password reset link will be sent.',
+                'message' => 'If an account matches that email, a verification code will be sent.',
             ]);
-        $this->assertDatabaseCount('password_reset_tokens', 1);
+
+        Notification::assertNothingSent();
+        $this->assertDatabaseCount('password_reset_verification_codes', 0);
+    }
+
+    public function test_email_password_reset_fails_when_mail_is_only_logged_locally(): void
+    {
+        config(['mail.default' => 'log']);
+
+        $this->postJson('/api/auth/forgot-password', ['email' => 'admin@example.test'])
+            ->assertServiceUnavailable()
+            ->assertExactJson([
+                'error' => 'Email verification is not configured. Please contact the school administrator.',
+            ]);
     }
 
     public function test_reset_password_page_contains_the_email_and_token(): void

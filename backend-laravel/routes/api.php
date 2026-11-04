@@ -56,6 +56,7 @@ Route::get('/health', function () {
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:api-login');
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:api-login');
+    Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode'])->middleware('throttle:api-login');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:api-login');
 });
 

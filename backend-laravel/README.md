@@ -55,6 +55,17 @@ to this API using its configured `TRACKED_API_BASE_URL`.
 The health endpoint runs a small database query and returns HTTP `503` without
 exposing connection details if MySQL is unavailable.
 
+## Email-verified password reset
+
+The app emails a one-time reset code to the account address. Configure a
+transactional SMTP sender in Render's environment settings. For Gmail, set
+`MAIL_MAILER=smtp`, `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`,
+`MAIL_SCHEME=smtp`, `MAIL_USERNAME` and `MAIL_FROM_ADDRESS` to the sending
+Gmail address, and `MAIL_PASSWORD` to a Google App Password (not the normal
+account password). Enable 2-Step Verification before creating an App Password.
+Set `MAIL_FROM_NAME=TrackEd`. Keep all mail credentials out of source control.
+Codes expire after 10 minutes and allow at most five verification attempts.
+
 ## Local demo accounts
 
 The demo seeder is disabled by default and refuses to seed unless

@@ -1,28 +1,119 @@
 /**
  * TrackEd API Client
- * All communication with the PHP REST backend goes through this module.
- * Falls back gracefully if the backend is offline (uses STATE data).
+ * The Flutter WebView uses Laravel; the separate browser client retains its PHP API.
  */
 
-const API_BASE = "https://tracked-app-api.vercel.app/api";
+const _isNativeApp = Boolean(window.TrackEdSecureStorage);
+let API_BASE = _isNativeApp ? "" : "https://tracked-app-api.vercel.app/api";
+let _apiConfigurationError = _isNativeApp
+  ? "TrackEd API has not been configured."
+  : null;
+let _resolveApiReady;
+const _apiReady = new Promise(resolve => {
+  _resolveApiReady = resolve;
+});
+if (!_isNativeApp) _resolveApiReady();
+let _token = null;
+let _fcmToken = null;
+let _secureStorageSequence = 0;
+const _secureStorageRequests = new Map();
 
-let _token = sessionStorage.getItem("sg_token") || null;
+window.configureTrackedApiBaseUrl = function(baseUrl) {
+  try {
+    const value = typeof baseUrl === "string" ? baseUrl.trim() : "";
+    if (!value) {
+      throw new Error("TrackEd API is not configured. Rebuild with TRACKED_API_BASE_URL.");
+    }
+
+    const parsed = new URL(value);
+    const isLocalHttp = parsed.protocol === "http:" &&
+      ["localhost", "127.0.0.1"].includes(parsed.hostname);
+    if ((parsed.protocol !== "https:" && !isLocalHttp) ||
+        !parsed.pathname.replace(/\/+$/, "").endsWith("/api") ||
+        parsed.search || parsed.hash) {
+      throw new Error("TRACKED_API_BASE_URL must be an HTTPS Laravel /api URL (HTTP is allowed for localhost development).");
+    }
+
+    API_BASE = value.replace(/\/+$/, "");
+    _apiConfigurationError = null;
+  } catch (error) {
+    _apiConfigurationError = error.message || "TrackEd API URL is invalid.";
+  }
+  _resolveApiReady();
+};
+
+window.resolveTrackedSecureStorage = function(response) {
+  const pending = _secureStorageRequests.get(response?.id);
+  if (!pending) return;
+  _secureStorageRequests.delete(response.id);
+  if (response.error) pending.reject(new Error(response.error));
+  else pending.resolve(response.value);
+};
+
+function secureStorageRequest(action, value) {
+  if (!window.TrackEdSecureStorage) {
+    if (action === "read") {
+      return Promise.resolve(sessionStorage.getItem("sg_token") || localStorage.getItem("sg_token"));
+    }
+    if (action === "write" && value) {
+      localStorage.setItem("sg_token", value);
+      sessionStorage.removeItem("sg_token");
+    } else if (action === "session" && value) {
+      sessionStorage.setItem("sg_token", value);
+      localStorage.removeItem("sg_token");
+    } else if (action === "delete") {
+      sessionStorage.removeItem("sg_token");
+      localStorage.removeItem("sg_token");
+    }
+    return Promise.resolve(null);
+  }
+
+  const id = `storage-${++_secureStorageSequence}`;
+  return new Promise((resolve, reject) => {
+    _secureStorageRequests.set(id, { resolve, reject });
+    window.TrackEdSecureStorage.postMessage(JSON.stringify({ id, action, value }));
+  });
+}
+
+window.addEventListener("tracked:fcm-token", (event) => {
+  _fcmToken = typeof event.detail === "string" ? event.detail : null;
+});
+
+window.addEventListener("tracked:fcm-message", (event) => {
+  const { title, body } = event.detail || {};
+  const message = [title, body].filter(Boolean).join(": ");
+  if (message && typeof toast === "function") toast(message, "info");
+});
 
 // ── Core fetch wrapper ──────────────────────────────────────────────────────
 
 async function apiFetch(path, options = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (_token) headers["Authorization"] = `Bearer ${_token}`;
+  await _apiReady;
+  if (_apiConfigurationError) throw new Error(_apiConfigurationError);
+
+  const headers = {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+  };
+  const token = await api.getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   let resp;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
     resp = await fetch(`${API_BASE}${path}`, {
       ...options,
+      signal: controller.signal,
       headers: { ...headers, ...(options.headers || {}) },
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
   } catch (error) {
+    if (controller.signal.aborted) {
+      console.error("TrackEd API request timed out:", `${API_BASE}${path}`);
+      throw new Error("The request took too long. Please try again.");
+    }
     console.error("TrackEd API network/CORS failure:", {
       url: `${API_BASE}${path}`,
       message: error?.message || String(error),
@@ -30,6 +121,8 @@ async function apiFetch(path, options = {}) {
     throw new Error(
       "Cannot reach the TrackEd API. Check the connection, WebView CORS restrictions, or hosting security challenge."
     );
+  } finally {
+    clearTimeout(timeout);
   }
 
   const contentType = resp.headers.get("content-type") || "";
@@ -55,7 +148,9 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!resp.ok) {
-    throw new Error(data.error || `API request failed (HTTP ${resp.status}).`);
+    const error = new Error(data.error || data.message || `API request failed (HTTP ${resp.status}).`);
+    error.status = resp.status;
+    throw error;
   }
 
   return data;
@@ -76,23 +171,59 @@ async function checkApiAvailability() {
 
 const api = {
   // ── Token ─────────────────────────────────────────────────────────────────
-  setToken(t) {
+  async setToken(t, remember = false) {
     _token = t;
-    if (t) sessionStorage.setItem("sg_token", t);
-    else    sessionStorage.removeItem("sg_token");
+    await secureStorageRequest(t ? (remember ? "write" : "session") : "delete", t);
   },
-  getToken() { return _token; },
+  async getToken() {
+    return _token;
+  },
+  hasToken() {
+    return Boolean(_token);
+  },
+  async restoreToken() {
+    if (_token) return _token;
+    _token = await secureStorageRequest("read");
+    return _token;
+  },
+  activate() { return secureStorageRequest("activate"); },
+  getFcmToken() { return _fcmToken; },
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  async login(email, password) {
-    const data = await apiFetch("/auth/login", { method: "POST", body: { email, password } });
-    api.setToken(data.token);
+  async login(email, password, remember = false) {
+    const data = await apiFetch("/auth/login", { method: "POST", body: { email, password, remember } });
+    await api.setToken(data.token, remember);
     return data; // { token, user }
   },
-  logout() { api.setToken(null); },
+  async logout() {
+    let requestError;
+    if (_token) {
+      try {
+        await apiFetch("/auth/logout", { method: "POST" });
+      } catch (error) {
+        requestError = error;
+      }
+    }
+    await api.setToken(null);
+    if (requestError) throw requestError;
+  },
 
   async forgotPassword(email) {
     return apiFetch("/auth/forgot-password", { method: "POST", body: { email } });
+  },
+  verifyPasswordResetCode(email, code) {
+    return apiFetch("/auth/verify-reset-code", { method: "POST", body: { email, code } });
+  },
+  resetPassword(email, resetToken, password, passwordConfirmation) {
+    return apiFetch("/auth/reset-password", {
+      method: "POST",
+      body: {
+        email,
+        reset_token: resetToken,
+        password,
+        password_confirmation: passwordConfirmation,
+      },
+    });
   },
   registerTeacher(data) {
     return apiFetch("/pending-teachers", { method: "POST", body: data });
@@ -142,8 +273,18 @@ const api = {
   getAttendance()          { return apiFetch("/attendance"); },
   markAttendance(date, records) { return apiFetch("/attendance/mark", { method:"POST", body:{ date, records } }); },
 
+  // ── Grade descriptions ─────────────────────────────────────────────────────
+  getGradeDescriptions() { return apiFetch("/grade-descriptions"); },
+  saveGradeDescriptions(quarter, descriptions) {
+    return apiFetch("/grade-descriptions", {
+      method: "PUT",
+      body: { quarter, descriptions },
+    });
+  },
+
   // ── Messages ──────────────────────────────────────────────────────────────
   getMessages()       { return apiFetch("/messages"); },
+  getMessagesAfter(id) { return apiFetch(`/messages?after=${encodeURIComponent(id)}`); },
   sendMessage(data)   { return apiFetch("/messages", { method:"POST", body: data }); },
   markRead(id)        { return apiFetch(`/messages/${id}/read`, { method:"PATCH" }); },
 
@@ -156,6 +297,8 @@ const api = {
   // ── Assignments ───────────────────────────────────────────────────────────
   getAssignments()     { return apiFetch("/assignments"); },
   addAssignment(data)  { return apiFetch("/assignments", { method:"POST", body:data }); },
+  updateAssignment(id,data) { return apiFetch(`/assignments/${id}`, { method:"PUT", body:data }); },
+  deleteAssignment(id) { return apiFetch(`/assignments/${id}`, { method:"DELETE" }); },
 
   // ── Notifications ─────────────────────────────────────────────────────────
   getNotifications()       { return apiFetch("/notifications"); },
@@ -171,19 +314,42 @@ const api = {
 
 async function syncStateFromAPI() {
   try {
-    const [students, teachers, parents, classes, grades, attendance, messages, announcements, assignments, notifications, pendingTeachers] =
+    STATE.students = [];
+    STATE.teachers = [];
+    STATE.parents = [];
+    STATE.classes = [];
+    STATE.grades = {};
+    STATE.gradeDescriptions = {};
+    STATE.attendance = {};
+    STATE.attendanceDays = {};
+    STATE.messages = [];
+    STATE.announcements = [];
+    STATE.assignments = [];
+    STATE.notifications = [];
+    STATE.pendingTeachers = [];
+    STATE.users = {};
+
+    const unavailableResources = [];
+    const readState = (resource, request) => request.catch(error => {
+      console.error(`[TrackEd] Could not load ${resource} from the API:`, error);
+      if (error.status !== 403) unavailableResources.push(resource);
+      return null;
+    });
+
+    const [students, teachers, parents, classes, grades, attendance, messages, announcements, assignments, notifications, pendingTeachers, gradeDescriptions] =
       await Promise.all([
-        api.getStudents().catch(() => null),
-        api.getTeachers().catch(() => null),
-        api.getParents().catch(() => null),
-        api.getClasses().catch(() => null),
-        api.getGrades().catch(() => null),
-        api.getAttendance().catch(() => null),
-        api.getMessages().catch(() => null),
-        api.getAnnouncements().catch(() => null),
-        api.getAssignments().catch(() => null),
-        api.getNotifications().catch(() => null),
-        api.getPendingTeachers().catch(() => null),
+        readState("students", api.getStudents()),
+        readState("teachers", api.getTeachers()),
+        readState("parents", api.getParents()),
+        readState("classes", api.getClasses()),
+        readState("grades", api.getGrades()),
+        readState("attendance", api.getAttendance()),
+        readState("messages", api.getMessages()),
+        readState("announcements", api.getAnnouncements()),
+        readState("assignments", api.getAssignments()),
+        readState("notifications", api.getNotifications()),
+        readState("pending teacher applications", api.getPendingTeachers()),
+        readState("grade descriptions", api.getGradeDescriptions()),
       ]);
 
     if (students)      STATE.students      = _mapStudents(students);
@@ -192,6 +358,7 @@ async function syncStateFromAPI() {
     if (parents)       STATE.parents       = _mapParents(parents);
     if (classes)       STATE.classes       = _mapClasses(classes);
     if (grades)        STATE.grades        = _presentationGrades(grades);
+    if (gradeDescriptions) STATE.gradeDescriptions = _mapGradeDescriptions(gradeDescriptions);
     if (attendance) {
       STATE.attendance = Object.fromEntries(Object.entries(attendance).map(([studentId, record]) => {
         const { days, ...totals } = record;
@@ -208,9 +375,12 @@ async function syncStateFromAPI() {
       grade: t.grade, section: t.section, appliedDate: t.applied_date, status: t.status,
     }));
 
-    console.log("[TrackEd] STATE synced from API ✓");
+    if (unavailableResources.length) {
+      console.warn("[TrackEd] Some API resources are unavailable:", unavailableResources);
+    }
+    console.log("[TrackEd] STATE synced from Laravel API.");
   } catch (err) {
-    console.warn("[TrackEd] API sync failed — using local STATE data:", err);
+    console.error("[TrackEd] API data could not be loaded:", err);
   }
 }
 
@@ -263,6 +433,7 @@ function _mapMessages(rows) {
     read:     m.read,
     studentId: m.studentId || m.student_id,
     thread:   m.thread || m.thread_id,
+    status:   "sent",
   }));
 }
 
@@ -271,6 +442,9 @@ function _mapAnnouncements(rows) {
     id: a.id, title: a.title, body: a.body, date: a.date,
     audience: a.audience, author: a.author,
     priority: a.priority, authorRole: a.author_role || a.authorRole,
+    category: a.category || "general",
+    pinned: Boolean(a.pinned),
+    canManage: Boolean(a.can_manage),
   }));
 }
 
@@ -282,10 +456,22 @@ function _mapAssignments(rows) {
     description: assignment.description,
     assignmentDate: assignment.assignment_date || assignment.assignmentDate,
     dueDate: assignment.due_date || assignment.dueDate || null,
+    workType: assignment.work_type || assignment.workType || "assignment",
     grade: assignment.grade,
     section: assignment.section,
     author: assignment.author,
+    teacherId: assignment.teacher_id || assignment.teacherId,
   }));
+}
+
+function _mapGradeDescriptions(rows) {
+  return Object.fromEntries(rows.map(row => [
+    row.student_id,
+    {
+      ...(STATE.gradeDescriptions?.[row.student_id] || {}),
+      [row.quarter]: row.description,
+    },
+  ]));
 }
 
 function _mapNotifications(rows) {
@@ -532,12 +718,17 @@ function patchScriptWithAPI() {
     const bo = document.getElementById("an-bo")?.value.trim();
     const au = document.getElementById("an-au")?.value;
     const pr = document.getElementById("an-pr")?.value;
+    const category = document.getElementById("an-cat")?.value || "general";
+    const pinned = document.getElementById("an-pin")?.value === "1";
     if (!ti || !bo) { toast("Title and message are required.", "error"); return; }
-    try {
-      const a = await api.addAnnouncement({ title:ti, body:bo, audience:au, priority:pr, author:STATE.currentUser.name });
-      STATE.announcements.unshift(_mapAnnouncements([a])[0]);
-      closeModal(); toast("Announcement posted!"); nav("announcements");
-    } catch(e) { toast(e.message || "Failed to post", "error"); }
+    const button=document.querySelector(".modal-footer .btn-primary");
+    await withButtonLoading(button,"Posting…",async()=>{
+      try {
+        const a = await api.addAnnouncement({ title:ti, body:bo, audience:au, priority:pr, category, pinned });
+        STATE.announcements.unshift(_mapAnnouncements([a])[0]);
+        closeModal(); toast("Announcement posted!"); nav("announcements");
+      } catch(e) { toast(e.message || "Failed to post", "error"); }
+    });
   };
 
   window._orig_updateAnnouncement = window.updateAnnouncement;
@@ -547,18 +738,23 @@ function patchScriptWithAPI() {
       body:     document.getElementById("ean-bo")?.value.trim(),
       audience: document.getElementById("ean-au")?.value,
       priority: document.getElementById("ean-pr")?.value,
+      category: document.getElementById("ean-cat")?.value,
+      pinned:   document.getElementById("ean-pin")?.value === "1",
     };
-    try {
-      const updated = await api.updateAnnouncement(id, payload);
-      const idx = STATE.announcements.findIndex(a => a.id === id);
-      if (idx >= 0) STATE.announcements[idx] = _mapAnnouncements([updated])[0];
-      closeModal(); toast("Announcement updated!"); nav("announcements");
-    } catch(e) { toast(e.message || "Update failed", "error"); }
+    const button=document.querySelector(".modal-footer .btn-primary");
+    await withButtonLoading(button,"Saving…",async()=>{
+      try {
+        const updated = await api.updateAnnouncement(id, payload);
+        const idx = STATE.announcements.findIndex(a => a.id === id);
+        if (idx >= 0) STATE.announcements[idx] = _mapAnnouncements([updated])[0];
+        closeModal(); toast("Announcement updated!"); nav("announcements");
+      } catch(e) { toast(e.message || "Update failed", "error"); }
+    });
   };
 
   window._orig_deleteAnnouncement = window.deleteAnnouncement;
-  window.deleteAnnouncement = function(id, title) {
-    showConfirm("Delete Announcement", `Remove "<strong>${title}</strong>"?`, async () => {
+  window.deleteAnnouncement = function(id) {
+    showConfirm("Delete Announcement", "Permanently remove this announcement?", async () => {
       try {
         await api.deleteAnnouncement(id);
         const idx = STATE.announcements.findIndex(a => a.id === id);
@@ -571,12 +767,7 @@ function patchScriptWithAPI() {
   // ── Grades save ───────────────────────────────────────────────────────────
   window._orig_saveGrades = window.saveGrades;
   window.saveGrades = async function() {
-    try {
-      await api.bulkUpdateGrades(STATE.grades);
-      if (typeof window._orig_saveGrades === "function") window._orig_saveGrades();
-    } catch(e) {
-      toast(e.message || "Grades could not be saved. Check your connection and try again.", "error");
-    }
+    if (typeof window._orig_saveGrades === "function") await window._orig_saveGrades();
   };
 
   // ── Attendance save ───────────────────────────────────────────────────────
@@ -594,22 +785,18 @@ function patchScriptWithAPI() {
     if (!toVal)       { toast("Please select a recipient.", "error"); return; }
     if (!sub || !body){ toast("Subject and message are required.", "error"); return; }
     const [toRole, toId] = toVal.split("|");
-    const payload = {
-      fromName: u.name, toRole: toRole||"teacher", toId: toId||"teacher",
-      subject: sub, body, studentId: sid, thread: null,
+    const newMessage = {
+      id:`pending-${Date.now()}`,
+      fromRole:u.role,fromId:u.id,fromName:u.name,toRole,toId,
+      subject:sub,body,date:new Date().toISOString().split("T")[0],
+      time:new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}),
+      read:false,studentId:sid,thread:null,status:"sending",
     };
-    try {
-      const res = await api.sendMessage(payload);
-      STATE.messages.unshift({
-        id: res.id, fromRole: u.role, fromId: u.id, fromName: u.name,
-        toRole, toId, subject: sub, body,
-        date: new Date().toISOString().split("T")[0],
-        time: new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}),
-        read: false, studentId: sid, thread: null,
-      });
-      updateUnreadBadge(); buildSidebar(u.role);
-      closeModal(); toast("Message sent!"); nav("messages");
-    } catch(e) { toast(e.message || "Send failed", "error"); }
+    STATE.messages.unshift(newMessage);
+    closeModal();
+    nav("messages");
+    window.openThread(toId);
+    await window.retryOutgoingMessage(newMessage.id);
   };
 
   // ── Profile save ──────────────────────────────────────────────────────────

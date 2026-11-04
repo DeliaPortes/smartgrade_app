@@ -1,8 +1,3 @@
-/* NEW: optional EmailJS integration for failing-grade alert emails (safe no-op if not loaded) */
-if (typeof emailjs !== 'undefined') {
-  try { emailjs.init({ publicKey: 'V2d1p81KvRc5qfwyZ' }); } catch(e) {}
-}
-
 function wireFormLabels(root = document) {
   root.querySelectorAll('label:not([for])').forEach(label => {
     const control = label.parentElement?.querySelector('input, select, textarea');
@@ -45,6 +40,7 @@ const STATE = {
     {id:'T003',name:'Ms. Carmen Lim',email:'clim@tracked.edu',phone:'09193333333',grade:'Grade 3',section:'Gumamela',subjects:'All Subjects',status:'active',joined:'2021-06-01'},
   ],
 
+  gradeDescriptions: {},
   parents: [
     {id:'P001',name:'Mrs. Liza Reyes',email:'parent@gmail.com',phone:'09171234567',children:['S001']},
     {id:'P002',name:'Mr. Carlos Gomez',email:'cgomez@gmail.com',phone:'09182345678',children:['S002']},
@@ -59,7 +55,7 @@ const STATE = {
   ],
 
   notifications: [
-    {id:1,title:'Q4 grade submission due',body:'All teachers must complete grade entry by Friday afternoon.',time:'2h ago',type:'high',read:false},
+    {id:1,title:'Q3 grade submission due',body:'All teachers must complete grade entry by Friday afternoon.',time:'2h ago',type:'high',read:false},
     {id:2,title:'New parent message received',body:'A parent has sent a new message about student progress.',time:'5h ago',type:'normal',read:false},
     {id:3,title:'School news posted',body:'New announcements are now available for all users.',time:'1d ago',type:'normal',read:false},
   ],
@@ -134,7 +130,7 @@ const STATE = {
   },
   get subjects(){ return subjectsForCurrentUser(); },
   subjectLabels: {math:'Mathematics',science:'Science',english:'English',filipino:'Filipino',gmrc:'GMRC',ap:'Araling Panlipunan',writing:'Writing',mapeh:'MAPEH',makabansa:'Makabansa',reading_literacy:'Reading and Literacy',language:'Language'},
-  quarters: ['Q1','Q2','Q3','Q4','Final'],
+  quarters: ['Q1','Q2','Q3','Final'],
   nextStudentId: 11,
   nextTeacherId: 4,
   nextMsgId: 6,
@@ -343,12 +339,12 @@ const normalizeGradeValue = value => {
 };
 const avg = a => {
   if (!Array.isArray(a) || !a.length) return 0;
-  const values = a.map(normalizeGradeValue).filter(v => Number.isFinite(v) && v > 0);
+  const values = a.slice(0,3).map(normalizeGradeValue).filter(v => Number.isFinite(v) && v > 0);
   return values.length ? Math.round(values.reduce((s, v) => s + v, 0) / values.length) : 0;
 };
 const validGrades = arr => Array.isArray(arr) ? arr.map(normalizeGradeValue).filter(v => Number.isFinite(v) && v > 0) : [];
 const safeAverage = arr => {
-  const valid = validGrades(arr);
+  const valid = validGrades(Array.isArray(arr) ? arr.slice(0,3) : arr);
   return valid.length ? Math.round(valid.reduce((s, v) => s + v, 0) / valid.length) : null;
 };
 const averageScores = scores => {
@@ -408,6 +404,23 @@ function toast(msg, type='success'){
   setTimeout(()=>t.remove(), 3200);
 }
 
+async function withButtonLoading(button, label, action){
+  if(!button) return action();
+  const originalHtml=button.innerHTML;
+  button.disabled=true;
+  button.setAttribute('aria-busy','true');
+  button.innerHTML=`<span class="inline-spinner" aria-hidden="true"></span>${label}`;
+  try{
+    return await action();
+  }finally{
+    if(button.isConnected){
+      button.innerHTML=originalHtml;
+      button.disabled=false;
+      button.removeAttribute('aria-busy');
+    }
+  }
+}
+
 function showConfirm(title, msg, onYes){
   const ov = document.createElement('div');
   ov.className = 'confirm-overlay';
@@ -421,7 +434,25 @@ function showConfirm(title, msg, onYes){
     </div>
   </div>`;
   document.body.appendChild(ov);
-  ov.querySelector('#confirm-yes').onclick = ()=>{ ov.remove(); onYes(); };
+  const confirmButton=ov.querySelector('#confirm-yes');
+  const cancelButton=ov.querySelector('.btn-secondary');
+  confirmButton.onclick=async()=>{
+    const originalText=confirmButton.textContent;
+    confirmButton.disabled=true;
+    cancelButton.disabled=true;
+    confirmButton.innerHTML='<span class="inline-spinner" aria-hidden="true"></span>Working…';
+    confirmButton.setAttribute('aria-busy','true');
+    try{
+      await onYes();
+      ov.remove();
+    }catch(error){
+      confirmButton.textContent=originalText;
+      confirmButton.disabled=false;
+      cancelButton.disabled=false;
+      confirmButton.removeAttribute('aria-busy');
+      toast(error.message||'The action could not be completed.','error');
+    }
+  };
 }
 
 let _modalStack = [];
@@ -694,6 +725,8 @@ function buildSidebar(role){
     </div>`;
 }
 function nav(page){
+  const user = STATE.currentUser;
+  if(!user || !navMenus[user.role]) return;
   closeSidebar();
   if(STATE.activeNav){ 
     document.getElementById('nl-'+STATE.activeNav)?.classList.remove('active'); 
@@ -702,7 +735,7 @@ function nav(page){
   document.getElementById('nl-'+page)?.classList.add('active');
   const c = document.getElementById('content');
   c.innerHTML='';
-  const role = STATE.currentUser.role;
+  const role = user.role;
   const pages = {
     teacher:{dashboard:pgTeacherDash,students:pgStudents,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,assignments:pgAssignments,announcements:pgAnnouncements,reports:pgReports,profile:pgProfile,ranking:pgRanking,parents:pgParentsTeacher},
     parent:{dashboard:pgParentDash,grades:pgGrades,attendance:pgAttendance,messages:pgMessages,assignments:pgAssignments,announcements:pgAnnouncements,profile:pgProfile},
@@ -710,7 +743,7 @@ function nav(page){
   };
   const renderPage = pages[role]?.[page] || (()=>{ c.innerHTML='<div class="empty-state"><div class="es-icon">🔍</div><div class="es-title">Page not found</div></div>'; });
   renderPage(c);
-  if(role==='parent'&&['dashboard','grades','attendance'].includes(page)&&typeof api!=='undefined'&&api.getToken()){
+  if(role==='parent'&&['dashboard','grades','attendance'].includes(page)&&typeof api!=='undefined'&&api.hasToken()){
     Promise.all([api.getStudents(),api.getGrades(),api.getAttendance()]).then(([students,grades,attendance])=>{
       if(STATE.currentUser?.role!=='parent'||STATE.activeNav!==page) return;
       STATE.students=_mapStudents(students);
@@ -736,7 +769,7 @@ function resolveParentChildId(user=STATE.currentUser){
   const existingChild=STATE.students.find(student=>student.id===user.childId&&String(student.parentId)===String(parentId));
   if(existingChild) return existingChild.id;
   const linkedChild=STATE.students.find(student=>String(student.parentId)===String(parentId));
-  const scopedApiChild=!linkedChild&&typeof api!=='undefined'&&api.getToken()&&STATE.students.length===1
+  const scopedApiChild=!linkedChild&&typeof api!=='undefined'&&api.hasToken()&&STATE.students.length===1
     ? STATE.students[0]
     : null;
   const child=linkedChild||scopedApiChild;
@@ -761,6 +794,9 @@ function pgAssignments(el){
   const isTeacher = STATE.currentUser.role === 'teacher';
   const assignments = [...(STATE.assignments || [])].sort((a,b) =>
     String(b.assignmentDate).localeCompare(String(a.assignmentDate)) || Number(b.id)-Number(a.id));
+  const editingAssignment = assignments.find(assignment =>
+    Number(assignment.id) === Number(window._editingAssignmentId)
+  ) || null;
   const today = assignmentDateToday();
   const subjects = STATE.subjects;
 
@@ -770,22 +806,25 @@ function pgAssignments(el){
     </div>
     ${isTeacher ? `
       <form class="card" onsubmit="saveAssignment(event)" style="margin-bottom:18px">
-        <div class="card-header"><div class="card-title" style="margin:0">Post an Assignment</div></div>
+        <div class="card-header"><div class="card-title" style="margin:0">${editingAssignment ? 'Edit Assignment or Project' : 'Post an Assignment or Project'}</div></div>
         <div class="form-grid form-row-2">
-          <div class="fg"><label for="as-title">Title*</label><input id="as-title" maxlength="160" required placeholder="e.g. Practice multiplication"></div>
-          <div class="fg"><label for="as-subject">Subject*</label><select id="as-subject" required>${subjects.map(subject=>`<option value="${escapeAssignmentText(subject)}">${escapeAssignmentText(STATE.subjectLabels[subject] || subject)}</option>`).join('')}</select></div>
-          <div class="fg"><label for="as-date">Assignment date*</label><input id="as-date" type="date" value="${today}" onchange="document.getElementById('as-due').min=this.value" required></div>
-          <div class="fg"><label for="as-due">Due date</label><input id="as-due" type="date" min="${today}"></div>
-          <div class="fg" style="grid-column:1/-1"><label for="as-description">Instructions*</label><textarea id="as-description" maxlength="5000" required placeholder="What should students complete?" style="min-height:100px"></textarea></div>
+          <div class="fg"><label for="as-type">Post type*</label><select id="as-type" required><option value="assignment" ${editingAssignment?.workType !== 'project' ? 'selected' : ''}>Assignment</option><option value="project" ${editingAssignment?.workType === 'project' ? 'selected' : ''}>Student Project</option></select></div>
+          <div class="fg"><label for="as-title">Title*</label><input id="as-title" maxlength="160" required placeholder="e.g. Practice multiplication" value="${escapeAssignmentText(editingAssignment?.title || '')}"></div>
+          <div class="fg"><label for="as-subject">Subject*</label><select id="as-subject" required>${subjects.map(subject=>`<option value="${escapeAssignmentText(subject)}" ${editingAssignment?.subject === subject ? 'selected' : ''}>${escapeAssignmentText(STATE.subjectLabels[subject] || subject)}</option>`).join('')}</select></div>
+          <div class="fg"><label for="as-date">Assignment date*</label><input id="as-date" type="date" value="${escapeAssignmentText(editingAssignment?.assignmentDate || today)}" onchange="document.getElementById('as-due').min=this.value" required></div>
+          <div class="fg"><label for="as-due">Due date</label><input id="as-due" type="date" min="${escapeAssignmentText(editingAssignment?.assignmentDate || today)}" value="${escapeAssignmentText(editingAssignment?.dueDate || '')}"></div>
+          <div class="fg" style="grid-column:1/-1"><label for="as-description">Instructions / Project details*</label><textarea id="as-description" maxlength="5000" required placeholder="What should students complete or submit?" style="min-height:100px">${escapeAssignmentText(editingAssignment?.description || '')}</textarea></div>
         </div>
-        <div class="page-actions" style="justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" type="submit">Post Assignment</button></div>
+        <div class="page-actions" style="justify-content:flex-end;margin-top:14px">${editingAssignment ? '<button class="btn btn-secondary" type="button" onclick="cancelEditAssignment()">Cancel</button>' : ''}<button class="btn btn-primary" type="submit">${editingAssignment ? 'Save Changes' : 'Post'}</button></div>
       </form>` : ''}
     <div style="display:grid;gap:12px">
       ${assignments.map(assignment=>`
         <article class="card" style="overflow-wrap:anywhere">
           <div class="flex aic jb" style="gap:10px;flex-wrap:wrap;margin-bottom:8px">
+            <span class="badge ${assignment.workType === 'project' ? 'bg-amber' : 'bg-blue'}">${assignment.workType === 'project' ? 'Student Project' : 'Assignment'}</span>
             <span class="badge bg-blue">${escapeAssignmentText(STATE.subjectLabels[assignment.subject] || assignment.subject)}</span>
             <span class="txs tm">${escapeAssignmentText(assignment.assignmentDate)}</span>
+            ${isTeacher ? `<button class="btn btn-secondary btn-xs" onclick="editAssignment(${Number(assignment.id)})">Edit</button><button class="btn btn-danger btn-xs" onclick="deleteAssignment(${Number(assignment.id)})">Delete</button>` : ''}
           </div>
           <div style="font-size:16px;font-weight:800;margin-bottom:5px">${escapeAssignmentText(assignment.title)}</div>
           <div class="txs tmm mb-10">${escapeAssignmentText(assignment.grade)} – ${escapeAssignmentText(assignment.section)}${assignment.dueDate ? ` &nbsp;·&nbsp; Due ${escapeAssignmentText(assignment.dueDate)}` : ''}${assignment.author ? ` &nbsp;·&nbsp; By ${escapeAssignmentText(assignment.author)}` : ''}</div>
@@ -798,19 +837,61 @@ function pgAssignments(el){
 async function saveAssignment(event){
   event.preventDefault();
   const title = document.getElementById('as-title')?.value.trim();
+  const workType = document.getElementById('as-type')?.value;
   const subject = document.getElementById('as-subject')?.value;
   const assignmentDate = document.getElementById('as-date')?.value;
   const dueDate = document.getElementById('as-due')?.value || null;
   const description = document.getElementById('as-description')?.value.trim();
-  if(!title || !subject || !assignmentDate || !description){ toast('Please complete all required assignment fields.','error'); return; }
-  try {
-    const saved = await api.addAssignment({title, subject, assignmentDate, dueDate, description});
-    STATE.assignments.unshift(_mapAssignments([saved])[0]);
-    toast('Assignment posted.');
-    nav('assignments');
-  } catch(error) {
-    toast(error.message || 'Assignment could not be posted.','error');
-  }
+  if(!title || !workType || !subject || !assignmentDate || !description){ toast('Please complete all required assignment fields.','error'); return; }
+  const button=event.submitter || event.target.querySelector('button[type="submit"]');
+  await withButtonLoading(button,window._editingAssignmentId?'Saving…':'Posting…',async()=>{
+    try {
+      const payload = {title, workType, subject, assignmentDate, dueDate, description};
+      const editingId = window._editingAssignmentId;
+      const saved = editingId
+        ? await api.updateAssignment(editingId, payload)
+        : await api.addAssignment(payload);
+      const updated = _mapAssignments([saved])[0];
+      if(editingId){
+        const index = STATE.assignments.findIndex(assignment => Number(assignment.id) === Number(editingId));
+        if(index >= 0) STATE.assignments[index] = updated;
+        window._editingAssignmentId = null;
+      }else{
+        STATE.assignments.unshift(updated);
+      }
+      toast(editingId ? 'Post updated.' : `${workType === 'project' ? 'Project' : 'Assignment'} posted.`);
+      nav('assignments');
+    } catch(error) {
+      toast(error.message || 'Assignment could not be posted.','error');
+    }
+  });
+}
+
+function editAssignment(id){
+  if(STATE.currentUser?.role !== 'teacher') return;
+  const assignment=STATE.assignments.find(item=>Number(item.id)===Number(id));
+  if(!assignment){ toast('This assignment could not be found.','error'); return; }
+  window._editingAssignmentId=assignment.id;
+  nav('assignments');
+  document.querySelector('#content form.card')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function cancelEditAssignment(){
+  window._editingAssignmentId=null;
+  nav('assignments');
+}
+
+function deleteAssignment(id){
+  showConfirm('Delete post','Permanently remove this assignment or project?',async()=>{
+    try{
+      await api.deleteAssignment(id);
+      STATE.assignments=STATE.assignments.filter(assignment=>Number(assignment.id)!==Number(id));
+      toast('Post deleted.');
+      nav('assignments');
+    }catch(error){
+      toast(error.message||'The post could not be deleted.','error');
+    }
+  });
 }
 
 /* ════════════════════════════════════════
@@ -1208,16 +1289,16 @@ function openForgotPassword(){
     <div style="text-align:center;margin-bottom:24px">
       <div style="font-size:40px;margin-bottom:12px">🔐</div>
       <div style="font-size:20px;font-weight:800;color:#18180E;margin-bottom:6px">Forgot Password?</div>
-      <div style="font-size:13px;color:#5C5A52">Enter your email and we'll send you a reset link.</div>
+      <div style="font-size:13px;color:#5C5A52">Enter the email address on your account. We'll send you a verification code.</div>
     </div>
     <div style="margin-bottom:16px">
       <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#5C5A52;margin-bottom:5px">Email Address</label>
-      <input id="forgot-email" type="email" placeholder="your@email.com"
+      <input id="forgot-email" type="email" autocomplete="email" placeholder="your@email.com"
         style="width:100%;padding:11px 14px;border:1.5px solid #E3E0D8;border-radius:9px;font-size:14px;outline:none;box-sizing:border-box">
     </div>
     <button onclick="submitForgotPassword()"
       style="width:100%;padding:13px;background:#2A76C9;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px">
-      Send Reset Link
+      Send Verification Code
     </button>
     <button onclick="document.getElementById('forgot-modal').remove()"
       style="width:100%;padding:11px;background:#F5F4F0;color:#5C5A52;border:1.5px solid #E3E0D8;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">
@@ -1230,18 +1311,7 @@ function openForgotPassword(){
 }
 
 function submitForgotPassword(){
-  const email = document.getElementById('forgot-email')?.value.trim();
-  if(!email){ 
-    alert('Please enter your email address.');
-    return;
-  }
-  const found = Object.values(STATE.users).find(u=>u.email===email);
-  document.getElementById('forgot-modal').remove();
-  if(found){
-    alert(`✅ Password reset link sent to ${email}!\n\n(Demo: your password is "password123")`);
-  } else {
-    alert(`❌ No account found with email: ${email}`);
-  }
+  toast('Email verification is unavailable. Please reopen the app and try again.', 'error');
 }
 /* ════════════════════════════════════════
    STUDENTS PAGE (Teacher & Admin)
@@ -1525,7 +1595,7 @@ async function importStudentsSpreadsheet(input){
       studentsToImport.push(student);
     }
     let imported=0;
-    const isApiUser=typeof api!=='undefined'&&Boolean(api.getToken());
+    const isApiUser=typeof api!=='undefined'&&api.hasToken();
     try{
       for(const student of studentsToImport){
         if(isApiUser){
@@ -1656,6 +1726,128 @@ function downloadPdf(filename, title, headers, rows){
   const url=URL.createObjectURL(doc.output('blob'));
   const link=document.createElement('a');
   link.href=url; link.download=filename; link.style.display='none';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function downloadCsv(filename, rows){
+  const escapeCell=value=>`"${String(value??'').replace(/"/g,'""')}"`;
+  const csv='\uFEFF'+rows.map(row=>row.map(escapeCell).join(',')).join('\r\n');
+  if(window.TrackEdDownload){
+    const bytes=new TextEncoder().encode(csv);
+    let binary='';
+    for(let offset=0;offset<bytes.length;offset+=0x8000){
+      binary+=String.fromCharCode(...bytes.subarray(offset,offset+0x8000));
+    }
+    window.TrackEdDownload.postMessage(JSON.stringify({
+      filename,
+      dataUri:`data:text/csv;charset=utf-8;base64,${btoa(binary)}`,
+    }));
+    return;
+  }
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');
+  link.href=url; link.download=filename; link.style.display='none';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function downloadClassPerformancePdf(sections){
+  const JsPDF=window.jspdf?.jsPDF;
+  if(!JsPDF){ toast('PDF service is unavailable. Connect to the internet and try again.','error'); return; }
+  const doc=new JsPDF({orientation:'landscape',unit:'mm'});
+  const margin=12;
+  const pageWidth=doc.internal.pageSize.getWidth();
+  const pageHeight=doc.internal.pageSize.getHeight();
+  const gradeHeading=grade=>grade==='Grade 1'?'Grade':'Final Grade';
+  const observationHeading=grade=>grade==='Grade 1'?'Description':'Remarks';
+  const drawSectionHeader=(section,continued=false)=>{
+    const numberWidth=9;
+    const studentWidth=43;
+    const remarksWidth=44;
+    const subjectWidth=(pageWidth-margin*2-numberWidth-studentWidth-remarksWidth)/section.subjects.length;
+    const widths=[numberWidth,studentWidth,...section.subjects.map(()=>subjectWidth),remarksWidth];
+    const headers=['#','Student',...section.subjects.map(subject=>STATE.subjectLabels[subject]||subject),observationHeading(section.grade)];
+    doc.setFont(undefined,'bold');
+    doc.setFontSize(15);
+    doc.text('TrackEd Class Performance Report',margin,14);
+    doc.setFont(undefined,'normal');
+    doc.setFontSize(9);
+    doc.text(`Grade Level: ${section.grade}${continued?' (continued)':''} · ${section.students.length} student(s)`,margin,21);
+    let x=margin;
+    let y=25;
+    const headerLines=headers.map((header,index)=>doc.splitTextToSize(header,widths[index]-3).slice(0,3));
+    const headerHeight=Math.max(14,...headerLines.map(lines=>lines.length*3.5+6));
+    doc.setFillColor(232,237,245);
+    doc.rect(margin,y,pageWidth-margin*2,headerHeight,'F');
+    doc.setFont(undefined,'bold');
+    doc.setFontSize(8);
+    headers.forEach((header,index)=>{
+      const lines=headerLines[index];
+      doc.text(lines,x+1.5,y+4);
+      x+=widths[index];
+    });
+    doc.setDrawColor(220,224,230);
+    x=margin;
+    widths.slice(0,-1).forEach(width=>{
+      x+=width;
+      doc.line(x,y,x,y+headerHeight);
+    });
+    y+=headerHeight;
+    doc.setFont(undefined,'normal');
+    return {y,widths};
+  };
+  let firstSection=true;
+  sections.forEach(section=>{
+    if(!firstSection) doc.addPage();
+    firstSection=false;
+    let {y,widths}=drawSectionHeader(section);
+    let rowIndex=0;
+    section.students.forEach(student=>{
+      const values=[
+        String(++rowIndex),
+        `${student.name}\n${student.section}`,
+        ...section.subjects.map(subject=>{
+          const scores=student.grades[subject]||[];
+          return `Q1: ${gradeDisplay(student,scores[0])}\nQ2: ${gradeDisplay(student,scores[1])}\nQ3: ${gradeDisplay(student,scores[2])}\n${gradeHeading(section.grade)}: ${gradeDisplay(student,safeAverage(scores.slice(0,3)))}`;
+        }),
+        STATE.gradeDescriptions?.[student.id]?.Q3||'—',
+      ];
+      const wrapped=values.map((value,index)=>{
+        const lines=doc.splitTextToSize(String(value??''),widths[index]-3);
+        return lines.length>6?[...lines.slice(0,5),'…']:lines;
+      });
+      const rowHeight=Math.max(22,...wrapped.map(lines=>lines.length*3.5+5));
+      if(y+rowHeight>pageHeight-12){
+        doc.addPage();
+        ({y,widths}=drawSectionHeader(section,true));
+      }
+      if(rowIndex%2===0){
+        doc.setFillColor(248,249,251);
+        doc.rect(margin,y,pageWidth-margin*2,rowHeight,'F');
+      }
+      let x=margin;
+      doc.setFontSize(7.5);
+      wrapped.forEach((lines,index)=>{
+        doc.text(lines,x+1.5,y+4);
+        if(index<widths.length-1) doc.line(x+widths[index],y,x+widths[index],y+rowHeight);
+        x+=widths[index];
+      });
+      doc.setDrawColor(220,224,230);
+      doc.line(margin,y+rowHeight,pageWidth-margin,y+rowHeight);
+      y+=rowHeight;
+    });
+  });
+  if(window.TrackEdDownload){
+    window.TrackEdDownload.postMessage(JSON.stringify({
+      filename:'class_performance.pdf',
+      dataUri:doc.output('datauristring'),
+    }));
+    return;
+  }
+  const url=URL.createObjectURL(doc.output('blob'));
+  const link=document.createElement('a');
+  link.href=url; link.download='class_performance.pdf'; link.style.display='none';
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
@@ -1945,6 +2137,10 @@ function pgGrades(el){
     const displaySubjects = isAdmin
       ? STATE.subjectSets[activeGrade] || STATE.subjects
       : visibleStudents.length ? subjectsForStudent(visibleStudents[0]) : STATE.subjects;
+    const gradeLevel=activeGrade||visibleStudents[0]?.grade||STATE.currentUser.grade;
+    const observationHeading=gradeLevel==='Grade 1'?'Description':'Remarks';
+    const canSaveQuarter=isTeacher&&activeQ<3;
+    const canSaveFinalGradeOne=isTeacher&&activeQ===3&&gradeLevel==='Grade 1';
     el.innerHTML=`
     <div class="page-head">
 <div>
@@ -1960,10 +2156,10 @@ function pgGrades(el){
         : 'Encode and manage student grades'}
   </div>
 </div>
-      ${isTeacher
+      ${canSaveQuarter||canSaveFinalGradeOne
         ? `<div class="page-actions">
-            <button class="btn btn-secondary" onclick="resetGrades()">Reset</button>
-            <button class="btn btn-primary" onclick="saveGrades()">💾 Save Grades</button>
+            ${canSaveQuarter?'<button class="btn btn-secondary" onclick="resetGrades()">Reset</button>':''}
+            <button class="btn btn-primary" onclick="saveGrades()">💾 ${canSaveFinalGradeOne?'Save Final Grade & Description':'Save Grades'}</button>
            </div>`
         : ''}
     </div>
@@ -1972,7 +2168,7 @@ function pgGrades(el){
     </div>`:''}
     <div class="tab-bar">
       ${STATE.quarters.map((q,i)=>
-        `<button class="tab-btn ${i===activeQ?'active':''}" data-qi="${i}">${q}</button>`
+        `<button class="tab-btn ${i===activeQ?'active':''}" data-qi="${i}">${i===3&&gradeLevel==='Grade 1'?'Grade':q}</button>`
       ).join('')}
     </div>
     ${isParent && students.some(student=>student.grade==='Grade 1')?`<div class="card mb-16"><details><summary>Grade 1 Performance Descriptors</summary><div class="g2 mt-12">${grade1Scale.map(level=>`<div class="flex aifs gap-10" style="padding:8px 0"><span class="badge bg-blue">${level.letter}</span><div><div class="fw6 ts">${level.name}</div><div class="txs tm mt-4">${level.description}</div></div></div>`).join('')}</div></details></div>`:''}
@@ -1981,20 +2177,20 @@ function pgGrades(el){
         <thead>
           <tr>
             <th>Student</th>
-            ${activeQ===4
-              ? STATE.quarters.slice(0,4).map(q=>`<th>${q}</th>`).join('')
+            ${activeQ===3
+              ? STATE.quarters.slice(0,3).map(q=>`<th>${q}</th>`).join('')
               : displaySubjects.map(s=>`<th>${STATE.subjectLabels[s]}</th>`).join('')}
-            <th>Average</th>
-            <th>Remarks</th>
+            <th>${activeQ===3&&gradeLevel!=='Grade 1'?'Final Grade':'Grade'}</th>
+            ${gradeLevel!=='Grade 1'||activeQ===3?`<th>${observationHeading}</th>`:''}
           </tr>
         </thead>
         <tbody>
           ${visibleStudents.map(s=>{
             const g = STATE.grades[s.id]||{};
-            const showFinal = activeQ===4;
+            const showFinal = activeQ===3;
             const applicableSubjects = new Set(subjectsForStudent(s));
             const scores = showFinal
-              ? STATE.quarters.slice(0,4).map((_,qi)=>
+              ? STATE.quarters.slice(0,3).map((_,qi)=>
                   averageScores(subjectsForStudent(s).map(sub=>g[sub]?.[qi]))
                 )
               : displaySubjects.map(sub=>applicableSubjects.has(sub)
@@ -2003,6 +2199,8 @@ function pgGrades(el){
                 );
             const ov = averageScores(scores) ?? 0;
             const honors = showFinal ? getHonors(ov) : null;
+            const quarter = STATE.quarters[activeQ];
+            const description = STATE.gradeDescriptions?.[s.id]?.[quarter] || '';
             return `<tr>
               <td>
                 <div class="flex aic gap-8">
@@ -2028,8 +2226,10 @@ function pgGrades(el){
                     : `<input class="grade-cell ${changed[key]?'changed':''}" type="number" min="0" max="100" value="${sc}" data-sid="${s.id}" data-sub="${sub}" data-qi="${activeQ}" onchange="onGradeChange(this,'${key}')">`}
                 </td>`;
               }).join('')}
-              <td><strong style="color:${gradeColor(s,ov)}">${gradeDisplay(s,ov)}</strong></td>
-              <td><span class="badge ${ov?gbadge(ov):'bg-gray'}">${s.grade==='Grade 1'?gradeDisplay(s,ov):glabel(ov)}</span>${isParent && s.grade==='Grade 1' && gradeDisplay(s,ov)!=='—'?`<div class="txs mt-4">${grade1Descriptor(gradeDisplay(s,ov))?.name||''}</div>`:''}${honors?`<div class="txs mt-4" style="color:var(--gold)">${honors.icon} ${honors.label}</div>`:''}</td>
+              <td><strong style="color:${gradeColor(s,ov)}">${gradeDisplay(s,ov)}</strong>${honors?`<div class="txs mt-4" style="color:var(--gold)">${honors.icon} ${honors.label}</div>`:''}</td>
+              ${gradeLevel!=='Grade 1'||showFinal?`<td>${isTeacher && (s.grade==='Grade 1'?showFinal:!showFinal)
+                ? `<textarea class="grade-description" data-sid="${escapeAssignmentText(s.id)}" data-quarter="${quarter}" maxlength="2000" rows="2" placeholder="Teacher observation…" oninput="updateGradeDescription(this)">${escapeAssignmentText(description)}</textarea>`
+                : `<span class="grade-description-text">${escapeAssignmentText(description || '—')}</span>`}</td>`:''}
             </tr>`;
           }).join('')}
         </tbody>
@@ -2055,31 +2255,40 @@ function pgGrades(el){
     STATE.grades[sid][sub][qi]=v;
     changed[key]=true;
     inp.classList.add('changed');
-    if (typeof checkAndSendFailingAlerts === 'function' && v>0 && v<75) {
-      const qLabel = STATE.quarters[qi] || `Q${qi+1}`;
-      const sent = checkAndSendFailingAlerts(sid, sub, qLabel, v, STATE.currentUser.name);
-      if (sent) {
-        toast(`⚠️ Alert sent to parent: ${STATE.students.find(x=>x.id===sid)?.name} failed ${STATE.subjectLabels[sub]||sub}`, 'error');
-        updateUnreadBadge();
-      }
-    }
+  };
+
+  window.updateGradeDescription=inp=>{
+    const studentId=inp.dataset.sid;
+    const quarter=inp.dataset.quarter;
+    if(!STATE.gradeDescriptions[studentId]) STATE.gradeDescriptions[studentId]={};
+    STATE.gradeDescriptions[studentId][quarter]=inp.value;
   };
 
   window.saveGrades=async()=>{
     if(!isTeacher){ toast('Only teachers can save grades.','error'); return; }
     const studentsToSave=getStudents();
-    if(typeof api!=='undefined'&&api.getToken()){
-      const gradesToSave=Object.fromEntries(studentsToSave.map(student=>[student.id,STATE.grades[student.id]||{}]));
-      try{
-        await api.bulkUpdateGrades(gradesToSave);
-      }catch(error){
-        toast(error.message||'Grades could not be saved. Check your connection and try again.','error');
-        return;
+    const isFinalGradeOne=activeQ===3&&studentsToSave.length>0&&studentsToSave.every(student=>student.grade==='Grade 1');
+    if(activeQ>=3&&!isFinalGradeOne){ toast('Select Q1, Q2, or Q3 to enter grades.','info'); return; }
+    const button=document.querySelector('#content .page-actions .btn-primary');
+    await withButtonLoading(button,'Saving…',async()=>{
+      if(typeof api!=='undefined'&&api.hasToken()){
+        const gradesToSave=Object.fromEntries(studentsToSave.map(student=>[student.id,STATE.grades[student.id]||{}]));
+        const descriptions=Object.fromEntries(studentsToSave.map(student=>[
+          student.id,
+          STATE.gradeDescriptions?.[student.id]?.[STATE.quarters[activeQ]]||''
+        ]));
+        try{
+          if(!isFinalGradeOne) await api.bulkUpdateGrades(gradesToSave);
+          await api.saveGradeDescriptions(STATE.quarters[activeQ],descriptions);
+        }catch(error){
+          toast(error.message||'Grades and descriptions could not be saved. Check your connection and try again.','error');
+          return;
+        }
       }
-    }
-    changed={};
-    toast('Grades saved successfully!');
-    render();
+      changed={};
+      toast(isFinalGradeOne?'Final descriptions saved successfully!':'Grades saved successfully!');
+      render();
+    });
   };
 
   window.resetGrades=()=>{
@@ -2089,7 +2298,7 @@ function pgGrades(el){
       if(!STATE.grades[s.id]) STATE.grades[s.id]={};
       subjectsForStudent(s).forEach(sub=>{
         if(!STATE.grades[s.id][sub]) STATE.grades[s.id][sub]=[0,0,0,0];
-        if(activeQ===4){
+        if(activeQ===3){
           STATE.grades[s.id][sub]=[0,0,0,0];
         } else {
           STATE.grades[s.id][sub][activeQ]=0;
@@ -2171,7 +2380,7 @@ function pgAttendance(el){
   </div>
 </div>
       ${isTeacher
-     ? `<button class="btn btn-primary" onclick="saveAttendance()">💾 Save Attendance</button>`
+     ? `<button class="btn btn-primary" id="att-save-btn" onclick="saveAttendance()">💾 Save Attendance</button>`
   : ''}
     </div>
 
@@ -2281,45 +2490,48 @@ function pgAttendance(el){
 
     window.saveAttendance=async()=>{
       if(!isTeacher){ toast('Only teachers can save attendance.','error'); return; }
-      const students2 = getStudents();
-      const records = {};
-      students2.forEach(s=>{ records[s.id] = selectedStatus(s.id); });
-      const isApiUser=typeof api!=='undefined'&&Boolean(api.getToken());
-      if(isApiUser){
-        try {
-          await api.markAttendance(selDate, records);
-          const refreshed=await api.getAttendance();
-          STATE.attendance=Object.fromEntries(Object.entries(refreshed).map(([studentId,record])=>{
-            const {days,...totals}=record; return [studentId,totals];
-          }));
-          STATE.attendanceDays=Object.fromEntries(Object.entries(refreshed).map(([studentId,record])=>[studentId,record.days||{}]));
-        } catch(e) {
-          toast(e.message||'Attendance could not be saved.','error');
-          return;
+      const button=document.getElementById('att-save-btn');
+      await withButtonLoading(button,'Saving…',async()=>{
+        const students2 = getStudents();
+        const records = {};
+        students2.forEach(s=>{ records[s.id] = selectedStatus(s.id); });
+        const isApiUser=typeof api!=='undefined'&&api.hasToken();
+        if(isApiUser){
+          try {
+            await api.markAttendance(selDate, records);
+            const refreshed=await api.getAttendance();
+            STATE.attendance=Object.fromEntries(Object.entries(refreshed).map(([studentId,record])=>{
+              const {days,...totals}=record; return [studentId,totals];
+            }));
+            STATE.attendanceDays=Object.fromEntries(Object.entries(refreshed).map(([studentId,record])=>[studentId,record.days||{}]));
+          } catch(e) {
+            toast(e.message||'Attendance could not be saved.','error');
+            return;
+          }
         }
-      }
-      if(!STATE.attendanceDays) STATE.attendanceDays = {};
-      if(!isApiUser) students2.forEach(s=>{
-        const val=selectedStatus(s.id);
-        if(!STATE.attendance[s.id]) STATE.attendance[s.id]={present:0,absent:0,half_day:0,tardy:0,late:0,total:0};
-        if(!STATE.attendanceDays[s.id]) STATE.attendanceDays[s.id]={};
-        const summary=STATE.attendance[s.id];
-        ['present','absent','half_day','tardy','late','total'].forEach(key=>{summary[key]??=0;});
-        const old=STATE.attendanceDays[s.id][selDate];
-        const adjust=(status,amount)=>{
-          if(status==='Absent') summary.absent+=amount;
-          else if(status==='Half-day') summary.half_day+=amount;
-          else if(status==='Tardy'){summary.tardy+=amount;summary.present+=amount;}
-          else if(status==='Late'){summary.late+=amount;summary.present+=amount;}
-          else if(status==='Present') summary.present+=amount;
-        };
-        if(old) adjust(old,-1); else STATE.attendance[s.id].total++;
-        adjust(val,1);
-        STATE.attendanceDays[s.id][selDate]=val;
+        if(!STATE.attendanceDays) STATE.attendanceDays = {};
+        if(!isApiUser) students2.forEach(s=>{
+          const val=selectedStatus(s.id);
+          if(!STATE.attendance[s.id]) STATE.attendance[s.id]={present:0,absent:0,half_day:0,tardy:0,late:0,total:0};
+          if(!STATE.attendanceDays[s.id]) STATE.attendanceDays[s.id]={};
+          const summary=STATE.attendance[s.id];
+          ['present','absent','half_day','tardy','late','total'].forEach(key=>{summary[key]??=0;});
+          const old=STATE.attendanceDays[s.id][selDate];
+          const adjust=(status,amount)=>{
+            if(status==='Absent') summary.absent+=amount;
+            else if(status==='Half-day') summary.half_day+=amount;
+            else if(status==='Tardy'){summary.tardy+=amount;summary.present+=amount;}
+            else if(status==='Late'){summary.late+=amount;summary.present+=amount;}
+            else if(status==='Present') summary.present+=amount;
+          };
+          if(old) adjust(old,-1); else STATE.attendance[s.id].total++;
+          adjust(val,1);
+          STATE.attendanceDays[s.id][selDate]=val;
+        });
+        todayRecords={};
+        toast('Attendance saved for '+selDate+'!');
+        render();
       });
-      todayRecords={};
-      toast('Attendance saved for '+selDate+'!');
-      render();
     };
 
     window.setAttendanceStatus=(button)=>{
@@ -2357,6 +2569,56 @@ function pgMessages(el){
   let searchQ = '';
   let activePartnerId = null;
   let showArchived = false;
+  let lastMessageId = STATE.messages.reduce((max,message)=>{
+    const id=Number(message.id);
+    return Number.isSafeInteger(id)?Math.max(max,id):max;
+  },0);
+  let pollInFlight = false;
+  let pollErrorReported = false;
+
+  async function refreshMessages(){
+    if(pollInFlight||STATE.activeNav!=='messages'||document.visibilityState==='hidden'||
+      typeof api==='undefined'||!api.hasToken()) return;
+    pollInFlight=true;
+    try{
+      const rows=await api.getMessagesAfter(lastMessageId);
+      const messages=_mapMessages(rows);
+      let changed=false;
+      messages.forEach(message=>{
+        const id=Number(message.id);
+        if(Number.isSafeInteger(id)) lastMessageId=Math.max(lastMessageId,id);
+        const existing=STATE.messages.find(item=>String(item.id)===String(message.id));
+        if(existing) Object.assign(existing,message);
+        else{
+          STATE.messages.push(message);
+          changed=true;
+        }
+      });
+      pollErrorReported=false;
+      if(!changed) return;
+
+      updateUnreadBadge();
+      const partner=activePartnerId;
+      const chatBody=document.getElementById('chat-body');
+      const shouldStickToBottom=chatBody&&
+        chatBody.scrollTop+chatBody.clientHeight>=chatBody.scrollHeight-40;
+      renderThreadRows();
+      if(partner&&window._activeMessagePartnerId===String(partner)){
+        openThread(partner,false);
+        if(shouldStickToBottom){
+          const updatedChat=document.getElementById('chat-body');
+          if(updatedChat) updatedChat.scrollTop=updatedChat.scrollHeight;
+        }
+      }
+    }catch(error){
+      if(!pollErrorReported){
+        console.error('Could not refresh messages in real time:',error);
+        pollErrorReported=true;
+      }
+    }finally{
+      pollInFlight=false;
+    }
+  }
 
   function getThreads(){
     const all = STATE.messages.filter(m =>
@@ -2371,14 +2633,17 @@ function pgMessages(el){
     const threadMap = {};
 
     all.forEach(m => {
-      const partnerId = m.fromId === u.id ? m.toId : m.fromId;
-
-      const partnerName = m.fromId === u.id
-        ? (m.toId === 'teacher'
-            ? 'Ms. Maria Santos'
-            : m.toId === 'admin'
-              ? 'Principal Roberto Cruz'
-              : STATE.parents.find(p => p.id === m.toId)?.name || m.toId)
+      const sentByCurrentUser=m.fromId===u.id;
+      const partnerId=sentByCurrentUser?m.toId:m.fromId;
+      const partnerRole=sentByCurrentUser?m.toRole:m.fromRole;
+      const partnerName=sentByCurrentUser
+        ? partnerRole==='admin'
+          ? 'Default Admin'
+          : partnerRole==='teacher'
+            ? STATE.teachers.find(teacher=>String(teacher.id)===String(partnerId))?.name||partnerId
+            : partnerRole==='parent'
+              ? STATE.parents.find(parent=>String(parent.id)===String(partnerId))?.name||partnerId
+              : partnerId
         : m.fromName;
 
       if (!threadMap[partnerId]) {
@@ -2547,8 +2812,9 @@ function pgMessages(el){
     toast('Alert moved back to inbox.');
   };
 
-  function openThread(partnerId){
+  function openThread(partnerId, focusReply=true){
     activePartnerId = partnerId;
+    window._activeMessagePartnerId = String(partnerId);
     el.classList.add('message-conversation-open');
 
     const threads = getThreads();
@@ -2558,9 +2824,18 @@ function pgMessages(el){
       return;
     }
 
+    const unreadMessageIds=[];
     thread.messages.forEach(m => {
-      if (!m.read && m.toId === u.id) m.read = true;
+      if (!m.read && m.toId === u.id) {
+        m.read = true;
+        if(Number.isSafeInteger(Number(m.id))) unreadMessageIds.push(m.id);
+      }
     });
+    if(unreadMessageIds.length&&typeof api!=='undefined'&&api.hasToken()){
+      unreadMessageIds.forEach(id=>api.markRead(id).catch(error=>
+        console.error('Could not mark message as read:',error)
+      ));
+    }
 
     thread.unread = 0;
     updateUnreadBadge();
@@ -2569,6 +2844,9 @@ function pgMessages(el){
 
     const chatHTML = thread.messages.map((m, index) => {
       const isMine = m.fromId === u.id;
+      const deliveryLabel = m.status === 'sending' ? 'Sending…'
+        : m.status === 'failed' ? 'Not sent'
+        : isMine ? 'Sent' : '';
 
       return `
         <div style="display:flex;flex-direction:column;
@@ -2579,9 +2857,9 @@ function pgMessages(el){
             ${!isMine ? `<div class="msg-bubble-avatar">${ini(m.fromName || thread.partnerName)}</div>` : ''}
             <div>
               <div class="msg-bubble ${isMine ? 'outgoing' : 'incoming'}">
-              ${m.body.replace(/\n/g, '<br>')}
+            ${escapeAssignmentText(m.body).replace(/\n/g, '<br>')}
               </div>
-              <div class="msg-bubble-meta" style="text-align:${isMine ? 'right' : 'left'}">${m.time || ''}</div>
+            <div class="msg-bubble-meta" style="text-align:${isMine ? 'right' : 'left'}">${escapeAssignmentText(m.time || '')}${deliveryLabel ? ` · <span class="msg-delivery-status ${m.status==='failed'?'failed':''}" aria-live="polite">${deliveryLabel}</span>` : ''}${isMine && m.status==='failed' ? ` <button class="msg-retry-btn" onclick="retryOutgoingMessage(${JSON.stringify(m.id)})">Retry</button>` : ''}</div>
             </div>
 
           </div>
@@ -2617,29 +2895,66 @@ function pgMessages(el){
         <button class="btn btn-primary msg-send-btn" type="button" onclick="sendReply('${partnerId}')" aria-label="Send reply">Send</button>
       </div>
     `;
-    detail.querySelector('#reply-area').focus();
+    const chatBody=detail.querySelector('#chat-body');
+    chatBody.scrollTop=chatBody.scrollHeight;
+    if(focusReply) detail.querySelector('#reply-area').focus();
+
+    window.retryOutgoingMessage = async function(messageId){
+      const message=STATE.messages.find(item=>String(item.id)===String(messageId));
+      if(!message||message.fromId!==u.id) return;
+      const partner=message.toId;
+      message.status='sending';
+      openThread(partner);
+      try{
+        if(typeof api!=='undefined'&&api.hasToken()){
+          const result=await api.sendMessage({
+            toRole:message.toRole,
+            toId:message.toId,
+            subject:message.subject||'Message',
+            body:message.body,
+            studentId:message.studentId||null,
+            thread:message.thread||null,
+          });
+          message.id=result.id;
+          message.delivery=result.delivery||'in_app';
+        }
+        message.status='sent';
+      }catch(error){
+        message.status='failed';
+        toast(error.message||'Message could not be sent. Tap Retry to try again.','error');
+      }
+      openThread(partner);
+    };
 
     window.sendReply = function(toPartnerId){
       const txt = document.getElementById('reply-area').value.trim();
       if (!txt) return;
+      const lastMessage=thread.messages[thread.messages.length-1];
+      const toRole=lastMessage.fromId===u.id?lastMessage.toRole:lastMessage.fromRole;
+      const studentId=lastMessage.studentId||null;
 
       const newMsg = {
-        id: STATE.nextMsgId++,
+        id: `pending-${Date.now()}`,
         fromRole: u.role,
         fromId: u.id,
         fromName: u.name,
+        toRole,
         toId: toPartnerId,
+        subject:lastMessage.subject||'Message',
         body: txt,
         date: new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString('en-PH', {hour:'2-digit',minute:'2-digit'}),
-        read: false
+        read: false,
+        studentId,
+        thread:lastMessage.thread||lastMessage.id,
+        status:'sending',
       };
 
       STATE.messages.unshift(newMsg);
       updateUnreadBadge();
       buildSidebar(u.role);
-      closeModal();
-      setTimeout(() => openThread(toPartnerId), 100);
+      openThread(toPartnerId);
+      window.retryOutgoingMessage(newMsg.id);
     };
   }
 
@@ -2667,6 +2982,7 @@ function pgMessages(el){
 
   window.closeMessageDetail = function(){
     activePartnerId = null;
+    window._activeMessagePartnerId = null;
     el.classList.remove('message-conversation-open');
     document.querySelector('.msg-layout')?.classList.remove('message-open');
     const detail = document.getElementById('message-detail');
@@ -2738,6 +3054,8 @@ function pgMessages(el){
     window.openThread = openThread;
     window.toggleArchivedView = () => { showArchived = !showArchived; activePartnerId = null; searchQ=''; render(); };
 
+    if(window._messagePollTimer) clearInterval(window._messagePollTimer);
+    window._messagePollTimer=setInterval(refreshMessages,1000);
     setTimeout(renderThreadRows, 0);
   }
 
@@ -2746,13 +3064,19 @@ function pgMessages(el){
 
 function openComposeModal(){
   const u=STATE.currentUser;
+  const child = u.role==='parent'
+    ? STATE.students.find(student=>String(student.id)===String(u.childId))
+    : null;
+  const childTeacher = child
+    ? STATE.teachers.find(teacher=>teacher.grade===child.grade&&teacher.section===child.section)
+    : null;
   const toOptions = u.role==='teacher'?
     `<option value="">-- Select recipient --</option>
-     <option value="admin|admin">Principal Roberto Cruz (Admin)</option>
+     <option value="admin|admin">Default Admin</option>
      ${STATE.parents.filter(p=>p.children.some(cid=>STATE.students.find(s=>s.id===cid&&s.section===u.section&&s.grade===u.grade))).map(p=>`<option value="parent|${p.id}">Parent: ${p.name}</option>`).join('')}`
     :u.role==='parent'?
-    `<option value="teacher|teacher">Ms. Maria Santos (Teacher)</option>
-     <option value="admin|admin">Principal Roberto Cruz (Admin)</option>`
+    `${childTeacher?`<option value="teacher|${escapeAssignmentText(childTeacher.id)}">${escapeAssignmentText(childTeacher.name)} (Teacher)</option>`:''}
+     <option value="admin|admin">Default Admin</option>`
     :`<option value="">-- Select recipient --</option>
      ${STATE.teachers.map(t=>`<option value="teacher|${t.id}">${t.name} (Teacher)</option>`).join('')}
      <option value="all|all">All Teachers (Broadcast)</option>`;
@@ -2791,22 +3115,30 @@ async function sendCompose(){
     time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),
     read:false,studentId:sid,thread:null
   };
-  let delivery='local';
-  if(typeof api!=='undefined'&&api.getToken()){
-    try{
-      const result=await api.sendMessage({toRole,toId,subject:sub,body,studentId:sid});
-      newMsg.id=result.id||newMsg.id;
-      delivery=result.delivery||'in_app';
-    }catch(error){
-      toast(error.message||'Message could not be sent.','error');
-      return;
-    }
-  }
+  const isApiUser=typeof api!=='undefined'&&api.hasToken();
+  newMsg.status=isApiUser?'sending':'sent';
   STATE.messages.unshift(newMsg);
   updateUnreadBadge(); buildSidebar(u.role);
   closeModal();
-  toast(delivery==='telegram_sent'?'Message saved; Telegram notification sent.':delivery==='telegram_failed'?'Message saved in TrackEd, but Telegram notification failed.':delivery==='telegram_unlinked'?'Message saved in TrackEd; recipient has not linked Telegram.':'Message sent successfully!');
   nav('messages');
+  window.openThread(toId);
+  if(!isApiUser){
+    toast('Message sent successfully!');
+    return;
+  }
+  try{
+    const result=await api.sendMessage({toRole,toId,subject:sub,body,studentId:sid});
+    newMsg.id=result.id||newMsg.id;
+    newMsg.delivery=result.delivery||'in_app';
+    newMsg.status='sent';
+    toast(newMsg.delivery==='telegram_sent'?'Message saved; Telegram notification sent.':newMsg.delivery==='telegram_failed'?'Message saved in TrackEd, but Telegram notification failed.':newMsg.delivery==='telegram_unlinked'?'Message saved in TrackEd; recipient has not linked Telegram.':'Message sent successfully!');
+  }catch(error){
+    newMsg.status='failed';
+    toast(error.message||'Message could not be sent. Tap Retry to try again.','error');
+  }
+  if(STATE.activeNav==='messages'&&window._activeMessagePartnerId===String(toId)){
+    window.openThread(toId);
+  }
 }
 /* ════════════════════════════════════════
    ANNOUNCEMENTS PAGE
@@ -2814,13 +3146,17 @@ async function sendCompose(){
 function pgAnnouncements(el){
   const isAdmin=STATE.currentUser.role==='admin';
   const isTeacher=STATE.currentUser.role==='teacher';
-  const canPost = isTeacher;
+  const canPost = isAdmin || isTeacher;
   const catIcons = {academic:'📚',event:'📅',holiday:'🎉',general:'📌'};
+  const audienceLabels = {all:'Everyone',teacher:'Teachers Only',parent:'Parents Only',admin:'Administrators Only'};
+  const canManage = announcement => isAdmin || announcement.canManage === true ||
+    (!window.TrackEdSecureStorage && isTeacher && announcement.authorRole==='teacher' && announcement.author===STATE.currentUser.name);
   window._annFilterCat = window._annFilterCat || 'all';
   function render(){
     const filterCat = window._annFilterCat;
     const cats = ['all','academic','event','holiday','general'];
-    const filtered = filterCat==='all' ? STATE.announcements : STATE.announcements.filter(a=>(a.category||'general')===filterCat);
+    const filtered = (filterCat==='all' ? STATE.announcements : STATE.announcements.filter(a=>(a.category||'general')===filterCat))
+      .slice().sort((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned))||String(b.date).localeCompare(String(a.date)));
     el.innerHTML=`
     <div class="page-head">
       <div><div class="page-title">Announcements</div><div class="page-sub">${STATE.announcements.length} announcement(s)</div></div>
@@ -2838,13 +3174,13 @@ function pgAnnouncements(el){
               ${a.pinned?`<span class="badge" style="background:var(--gold-l);color:var(--gold)">📌 Pinned</span>`:''}
               <span class="badge ${a.priority==='high'?'bg-red':'bg-gray'}">${a.priority==='high'?'🔔 Important':'📋 Notice'}</span>
               <span class="badge bg-gray">${catIcons[a.category||'general']||'📌'} ${(a.category||'general').charAt(0).toUpperCase()+(a.category||'general').slice(1)}</span>
-              <span class="badge ${a.audience==='all'?'bg-blue':'bg-amber'}">${a.audience==='all'?'Everyone':'Teachers Only'}</span>
+              <span class="badge ${a.audience==='all'?'bg-blue':'bg-amber'}">${audienceLabels[a.audience]||'Everyone'}</span>
             </div>
-            ${canPost?`<div class="flex gap-8" style="flex-wrap:wrap"><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openEditAnnouncementModal(${a.id})">Edit</button><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteAnnouncement(${a.id},'${a.title.replace(/'/g,"\\'")}')">Delete</button></div>`:''}
+            ${canManage(a)?`<div class="flex gap-8" style="flex-wrap:wrap"><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openEditAnnouncementModal(${Number(a.id)})">Edit</button><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteAnnouncement(${Number(a.id)})">Delete</button></div>`:''}
           </div>
-          <div style="font-size:17px;font-weight:800;letter-spacing:-.3px;margin-bottom:4px;overflow-wrap:break-word;word-break:break-word">${a.title}</div>
-          <div class="txs tmm mb-10">By ${a.author} &nbsp;·&nbsp; ${a.date}</div>
-          <p class="ts tm" style="line-height:1.7;overflow-wrap:break-word;word-break:break-word;white-space:normal">${a.body}</p>
+          <div style="font-size:17px;font-weight:800;letter-spacing:-.3px;margin-bottom:4px;overflow-wrap:break-word;word-break:break-word">${escapeAssignmentText(a.title)}</div>
+          <div class="txs tmm mb-10">By ${escapeAssignmentText(a.author)} &nbsp;·&nbsp; ${escapeAssignmentText(a.date)}</div>
+          <p class="ts tm" style="line-height:1.7;overflow-wrap:break-word;word-break:break-word;white-space:pre-wrap">${escapeAssignmentText(a.body)}</p>
         </div>`).join('')}
       ${filtered.length===0?`<div class="card"><div class="empty-state"><div class="es-icon">📢</div><div class="es-title">No announcements yet</div></div></div>`:''}
     </div>`;
@@ -2860,9 +3196,9 @@ function openAnnouncementModal(id){
   openModal(`
   <div class="modal-header"><div class="modal-title">${a.title}</div><button class="modal-close" onclick="closeModal()">✕</button></div>
   <div class="modal-body">
-    <div class="flex aic gap-10 mb-16"><span class="badge ${a.priority==='high'?'bg-red':'bg-gray'}">${a.priority==='high'?'Important':'Notice'}</span><span class="badge ${a.audience==='all'?'bg-blue':'bg-amber'}">${a.audience==='all'?'Everyone':'Teachers Only'}</span></div>
-    <div class="txs tmm mb-10">By ${a.author} &nbsp;·&nbsp; ${a.date}</div>
-    <p class="ts tm" style="line-height:1.8">${a.body}</p>
+    <div class="flex aic gap-10 mb-16"><span class="badge ${a.priority==='high'?'bg-red':'bg-gray'}">${a.priority==='high'?'Important':'Notice'}</span><span class="badge ${a.audience==='all'?'bg-blue':'bg-amber'}">${{all:'Everyone',teacher:'Teachers Only',parent:'Parents Only',admin:'Administrators Only'}[a.audience]||'Everyone'}</span></div>
+    <div class="txs tmm mb-10">By ${escapeAssignmentText(a.author)} &nbsp;·&nbsp; ${escapeAssignmentText(a.date)}</div>
+    <p class="ts tm" style="line-height:1.8;white-space:pre-wrap">${escapeAssignmentText(a.body)}</p>
   </div>
   <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
 }
@@ -3279,19 +3615,60 @@ function pgReports(el){
   myStudents.forEach(s=>{const g=STATE.grades[s.id];if(g){const ov=overallAvg(g,STATE.subjectSets[s.grade]||STATE.subjects);allOv.push({name:s.name,id:s.id,grade:s.grade,ov});}});
   const sorted=[...allOv].sort((a,b)=>b.ov-a.ov);
   const grade1Cohort=myStudents.length>0&&myStudents.every(student=>student.grade==='Grade 1');
+  const performanceGradeHeading=grade=>grade==='Grade 1'?'Grade':'Final Grade';
+  const performanceObservationHeading=grade=>grade==='Grade 1'?'Description':'Remarks';
+  const performanceSections=()=>{
+    const gradeLevels=[...new Set(myStudents.map(student=>student.grade))]
+      .sort((a,b)=>Number(a.match(/\d+/)?.[0]||0)-Number(b.match(/\d+/)?.[0]||0));
+    return gradeLevels.map(grade=>({
+      grade,
+      subjects:STATE.subjectSets[grade]||STATE.subjects,
+      students:myStudents.filter(student=>student.grade===grade).map(student=>({
+        ...student,
+        grades:STATE.grades[student.id]||{},
+      })).sort((a,b)=>String(a.section).localeCompare(String(b.section))||String(a.name).localeCompare(String(b.name))),
+    }));
+  };
 
   el.innerHTML=`
   <div class="page-head"><div><div class="page-title">Reports &amp; Analytics</div><div class="page-sub">Generate and export academic data</div></div></div>
 
   <div class="g2 mb-16">
     ${[
-      {title:'Class Performance Report',desc:'Summary of grades across all subjects and quarters.',icon:'📊',action:"downloadClassPerformancePDF()",label:'Download PDF'},
+      {title:'Class Performance Report',desc:'A separate table for each grade level, with grade-specific subjects and Q1–Q3 results.',icon:'📊',action:"downloadClassPerformancePDF()",label:'Download PDF'},
       {title:'Attendance Report',desc:'Complete attendance records with rates per student.',icon:'📅',action:"downloadAttendancePDF()",label:'Download PDF'},
     ].map(r=>`<div class="card flex aic gap-14">
       <div style="width:48px;height:48px;background:var(--green-l);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${r.icon}</div>
       <div class="f1"><div class="fw7 ts mb-4">${r.title}</div><div class="txs tm mb-10">${r.desc}</div><div class="flex gap-8"><button class="btn btn-primary btn-xs" onclick="${r.action}">${r.label}</button></div></div>
     </div>`).join('')}
   </div>
+
+  ${performanceSections().map(section=>`
+    <div class="card mb-16">
+      <div class="card-header">
+        <div class="card-title" style="margin:0">Grade Level: ${escapeAssignmentText(section.grade)}</div>
+        <span class="badge bg-blue">${section.subjects.length} subject(s)</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Student / Section</th>${section.subjects.map(subject=>`<th>${escapeAssignmentText(STATE.subjectLabels[subject]||subject)}</th>`).join('')}<th>${performanceObservationHeading(section.grade)}</th></tr></thead>
+          <tbody>
+            ${section.students.map((student,index)=>{
+              return `<tr>
+                <td>${index+1}</td>
+                <td>${escapeAssignmentText(student.name)}<div class="txs tm">${escapeAssignmentText(student.section)}</div></td>
+                ${section.subjects.map(subject=>{
+                  const scores=student.grades[subject]||[];
+                  return `<td>Q1: ${gradeDisplay(student,scores[0])}<br>Q2: ${gradeDisplay(student,scores[1])}<br>Q3: ${gradeDisplay(student,scores[2])}<br>${performanceGradeHeading(section.grade)}: ${gradeDisplay(student,safeAverage(scores.slice(0,3)))}</td>`;
+                }).join('')}
+                <td>${escapeAssignmentText(STATE.gradeDescriptions?.[student.id]?.Q3||'—')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${section.students.length===0?'<div class="empty-state">No student records for this grade level.</div>':''}
+    </div>`).join('')}
 
   <div class="g2">
     <div class="card">
@@ -3320,15 +3697,12 @@ function pgReports(el){
   </div>`;
 
   window.downloadClassPerformancePDF = function(){
-    const header=['Rank','Name','LRN',...STATE.subjects.map(s=>STATE.subjectLabels[s]),'General Average','Descriptor','Honors'];
-    const rows=[header];
-    sorted.forEach((item,i)=>{
-      const s = STATE.students.find(x=>x.id===item.id);
-      const g = STATE.grades[item.id]||{};
-      const h = getHonors(item.ov);
-      rows.push([i+1, item.name, s?.lrn||'', ...STATE.subjects.map(sub=>gradeDisplay(s,avg(g[sub]||[]))), gradeDisplay(s,item.ov), s?.grade==='Grade 1'?grade1Descriptor(gradeDisplay(s,item.ov))?.name:glabel(item.ov), h?h.label:'']);
-    });
-    downloadPdf('class_performance.pdf','Class Performance Report',header,rows);
+    const sections=performanceSections();
+    if(!sections.some(section=>section.students.length)){
+      toast('There are no student records to include in this report.','info');
+      return;
+    }
+    downloadClassPerformancePdf(sections);
   };
 
   window.downloadAttendancePDF = function(){
@@ -3351,51 +3725,6 @@ function getHonors(avgScore){
   if (avgScore >= 95) return { label:'With High Honors', icon:'🥇' };
   if (avgScore >= 90) return { label:'With Honors', icon:'🥈' };
   return null;
-}
-
-/* ════════════════════════════════════════════════════════════════════════════
-   NEW: Auto-alert to parent when a failing grade (below 75) is entered
-   ════════════════════════════════════════════════════════════════════════════ */
-function checkAndSendFailingAlerts(studentId, subject, quarterLabel, score, teacherName){
-  if(!(score>0 && score<75)) return false;
-  const student = STATE.students.find(s=>s.id===studentId);
-  if(!student) return false;
-  const parent = STATE.parents.find(p=>p.children && p.children.includes(studentId));
-  if(!parent) return false;
-
-  const subjectLabel = STATE.subjectLabels[subject] || subject;
-  const alreadySent = STATE.messages.find(m=>m.isAlert && m.studentId===studentId && m.subject && m.subject.includes(subjectLabel) && m.subject.includes(quarterLabel));
-  if(alreadySent) return false;
-
-  const alertMsg = {
-    id: STATE.nextMsgId++,
-    fromRole:'system', fromId:'system', fromName:'🔔 TrackEd Alert',
-    toRole:'parent', toId:parent.id,
-    subject:`Academic Alert: ${student.name} — ${subjectLabel} (${quarterLabel})`,
-    body:`This is an automated notification from TrackEd.\n\n${student.name} has received a grade of ${score} in ${subjectLabel} for ${quarterLabel}, which is below the passing mark of 75.\n\nPlease coordinate with ${teacherName||'the class teacher'} at your earliest convenience to discuss how to support your child's academic performance.\n\nThank you for your continued support.`,
-    date:new Date().toISOString().split('T')[0],
-    time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),
-    read:false, studentId, thread:null, isAlert:true,
-  };
-  STATE.messages.unshift(alertMsg);
-
-  if(typeof emailjs !== 'undefined' && parent.email){
-    try{
-      emailjs.send('service_g3io8sl','template_f1rokml',{
-        parent_name:parent.name, student_name:student.name, subject:subjectLabel,
-        score, quarter:quarterLabel, teacher_name:teacherName||'the class teacher'
-      }).catch(()=>{});
-    }catch(e){}
-  }
-
-  STATE.notifications.unshift({
-    id: STATE.notifications.length+1,
-    title:`Alert Sent: ${student.name}`,
-    body:`${student.name} scored ${score} in ${subjectLabel} (${quarterLabel}). Parent notified automatically.`,
-    time:'just now', type:'high', read:false,
-  });
-
-  return true;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -3508,7 +3837,7 @@ function pgReportCard(el){
     const at = STATE.attendance[s.id]||{present:0,absent:0,late:0,total:0};
     const teacher = STATE.teachers.find(t=>t.grade===s.grade&&t.section===s.section);
     const studentSubjects = STATE.subjectSets[s.grade] || STATE.subjects;
-    const gradesForStudent = studentSubjects.map(sub => safeAverage(g[sub] || []));
+    const gradesForStudent = studentSubjects.map(sub => safeAverage((g[sub] || []).slice(0,3)));
     const ov = averageScores(gradesForStudent);
     const honors = ov !== null ? getHonors(ov) : null;
 
@@ -3547,17 +3876,17 @@ function pgReportCard(el){
       </div>
       <div class="rc-section-title" style="margin-top:16px">LEARNER'S ACADEMIC PROGRESS REPORT</div>
       <table class="rc-table">
-        <thead><tr><th rowspan="2">Learning Area</th><th colspan="4">Quarter</th><th rowspan="2">Final Grade</th><th rowspan="2">Descriptor</th></tr><tr><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+        <thead><tr><th rowspan="2">Learning Area</th><th colspan="3">Quarter</th><th rowspan="2">${s.grade==='Grade 1'?'Grade':'Final Grade'}</th><th rowspan="2">Descriptor</th></tr><tr><th>Q1</th><th>Q2</th><th>Q3</th></tr></thead>
         <tbody>
           ${STATE.subjects.map(sub=>{
-            const scores = Array.isArray(g[sub]) ? g[sub] : [0,0,0,0];
+            const scores = Array.isArray(g[sub]) ? g[sub].slice(0,3) : [0,0,0];
             const fin = safeAverage(scores);
             const finalLetter=fin!==null?gradeDisplay(s,fin):'—';
             const descriptor=s.grade==='Grade 1'?grade1Descriptor(finalLetter):null;
             return `<tr><td class="rc-subject">${STATE.subjectLabels[sub]}</td>${scores.map(sc=>`<td class="rc-score" style="${Number.isFinite(sc)&&sc>0&&sc<75?'color:var(--red);font-weight:700':Number.isFinite(sc)&&sc>=90?'color:var(--green);font-weight:700':''}">${Number.isFinite(sc)&&sc>0 ? gradeDisplay(s,sc) : '—'}</td>`).join('')}<td class="rc-final" style="color:${fin !== null ? gcol(fin) : 'var(--text3)'}">${fin !== null ? finalLetter : '—'}</td><td class="rc-desc">${fin !== null ? (descriptor?.name||glabel(fin)) : '—'}</td></tr>`;
           }).join('')}
           <tr class="rc-total-row"><td class="rc-subject">General Average</td>
-            ${STATE.quarters.slice(0,4).map((_,qi)=>{ const vals=studentSubjects.map(sub => Number.isFinite(g[sub]?.[qi]) && g[sub][qi] > 0 ? g[sub][qi] : null); const qa = averageScores(vals); return `<td class="rc-score" style="color:${qa !== null ? gcol(qa) : 'var(--text3)'}">${qa !== null ? gradeDisplay(s,qa) : '—'}</td>`; }).join('')}
+            ${STATE.quarters.slice(0,3).map((_,qi)=>{ const vals=studentSubjects.map(sub => Number.isFinite(g[sub]?.[qi]) && g[sub][qi] > 0 ? g[sub][qi] : null); const qa = averageScores(vals); return `<td class="rc-score" style="color:${qa !== null ? gcol(qa) : 'var(--text3)'}">${qa !== null ? gradeDisplay(s,qa) : '—'}</td>`; }).join('')}
             <td class="rc-final" style="font-size:16px;color:${ov !== null ? gcol(ov) : 'var(--text3)'}">${ov !== null ? gradeDisplay(s,ov) : '—'}</td><td class="rc-desc">${ov !== null ? (grade1Descriptor(gradeDisplay(s,ov))?.name||glabel(ov)) : '—'}</td></tr>
         </tbody>
       </table>
@@ -3757,7 +4086,7 @@ function pgParentsTeacher(el){
       const phone=document.getElementById('teacher-parent-phone')?.value.trim()||'';
       if(!name||!email){toast('Name and email are required.','error');return;}
       try{
-        const updated=typeof api!=='undefined'&&api.getToken()
+        const updated=typeof api!=='undefined'&&api.hasToken()
           ? await api.updateParent(parent.id,{name,email,phone})
           : {...parent,name,email,phone};
         Object.assign(parent,{name:updated.name,email:updated.email,phone:updated.phone});
@@ -3779,7 +4108,7 @@ function pgParentsTeacher(el){
   function deleteTeacherParent(parent){
     showConfirm('Delete Parent',`Remove <strong>${escapeHtml(parent.name)}</strong> from your class? If linked to another teacher's students, their account and records will remain.`,async()=>{
       try{
-        const result=typeof api!=='undefined'&&api.getToken()
+        const result=typeof api!=='undefined'&&api.hasToken()
           ? await api.deleteParent(parent.id)
           : {deleted:true};
         STATE.parents=STATE.parents.filter(item=>item.id!==parent.id);
@@ -3838,7 +4167,7 @@ async function saveParentTeacher(){
   }
   try{
     let parent;
-    if(typeof api!=='undefined'&&api.getToken()){
+    if(typeof api!=='undefined'&&api.hasToken()){
       const created=await api.addParent({name,email,phone,password:pass,childId});
       parent={id:created.id,name:created.name,email:created.email,phone:created.phone,children:created.children||[childId]};
     }else{
@@ -3905,7 +4234,7 @@ async function importParentsSpreadsheet(input){
     }
 
     let imported=0;
-    const useApi=typeof api!=='undefined'&&Boolean(api.getToken());
+    const useApi=typeof api!=='undefined'&&api.hasToken();
     try{
       for(const parent of prepared){
         let id;
