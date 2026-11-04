@@ -12,6 +12,20 @@ void main() {
     expect(html, contains('app-bootstrap.js'));
   });
 
+  test('login stays hidden while the saved session is being restored', () async {
+    final html = await rootBundle.loadString('assets/tracked/index.html');
+    final css = await rootBundle.loadString('assets/tracked/style.css');
+    final bootstrap = await rootBundle.loadString(
+      'assets/tracked/app-bootstrap.js',
+    );
+
+    expect(html, contains('class="session-restoring"'));
+    expect(html, contains('id="session-startup"'));
+    expect(css, contains('body.session-restoring #login-page'));
+    expect(css, contains('body.session-restoring #session-startup'));
+    expect(bootstrap, contains('classList.remove("session-restoring")'));
+  });
+
   test('teacher approvals use the API handler in the mobile app', () async {
     final bootstrap = await rootBundle.loadString(
       'assets/tracked/app-bootstrap.js',

@@ -221,8 +221,8 @@ window.completePasswordReset = async function() {
 
 // ── Auto-login if a valid token exists ───────────────────────────────────────
 (async function autoLogin() {
-  if (!await checkOnlineAccess()) return;
   try {
+    if (!await checkOnlineAccess()) return;
     const token = await api.restoreToken();
     if (!token) return;
 
@@ -251,6 +251,8 @@ window.completePasswordReset = async function() {
     console.warn("[TrackEd] Could not restore the saved session:", e.message);
     if (e.status === 401) await api.setToken(null);
     toast(e.message || "Could not restore the saved session.", "error");
+  } finally {
+    document.body.classList.remove("session-restoring");
   }
 })();
 

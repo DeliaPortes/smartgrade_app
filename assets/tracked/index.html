@@ -8,7 +8,7 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="session-restoring">
 
 <div id="offline-gate" class="offline-gate" role="status" aria-live="polite">
   <div class="offline-gate-box">
@@ -16,6 +16,12 @@
     <p>Connect to the internet to use TrackEd.</p>
     <button type="button" class="btn btn-primary" onclick="checkOnlineAccess()">Try Again</button>
   </div>
+</div>
+
+<div id="session-startup" role="status" aria-live="polite">
+  <img src="images/logo.png" alt="" class="session-startup-logo">
+  <div class="session-startup-spinner" aria-hidden="true"></div>
+  <div>Restoring your session…</div>
 </div>
 
 <!-- ═══════════════ LOGIN PAGE ═══════════════ -->
